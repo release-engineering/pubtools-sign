@@ -1,9 +1,10 @@
 import base64
 import json
+import os
 
 from click.testing import CliRunner
 import pytest
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, ANY
 
 
 from pubtools.sign.models.msg import MsgError
@@ -359,7 +360,7 @@ def test_clear_sign_send_errors(patched_uuid, f_config_msg_signer_ok):
 
 
 @patch("uuid.uuid4", return_value="1234-5678-abcd-efgh")
-def test_container_sign(patched_uuid, f_config_msg_signer_ok):
+def test_container_sign(patched_uuid, f_config_msg_signer_ok, f_client_certificate):
     container_sign_operation = ContainerSignOperation(
         task_id="1",
         digests=["sha256:abcdefg"],
@@ -377,6 +378,15 @@ def test_container_sign(patched_uuid, f_config_msg_signer_ok):
             signer = MsgSigner()
             signer.load_config(load_config(f_config_msg_signer_ok))
             res = signer.container_sign(container_sign_operation)
+
+            patched_send_client.assert_called_with(
+                messages=[ANY],
+                broker_urls=["amqps://broker-01:5671", "amqps://broker-02:5671"],
+                cert=f_client_certificate,
+                ca_cert=os.path.expanduser("~/messaging/ca-cert.crt"),
+                retries=3,
+                errors=[],
+            )
 
             assert res == SigningResults(
                 signer=signer,

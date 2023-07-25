@@ -347,12 +347,14 @@ class MsgSigner(Signer):
         )
         LOG.debug(f"{len(messages)} messages to send")
 
+        errors = []
         errors = SendClient(
             messages=messages,
             broker_urls=self.messaging_brokers,
             cert=self.messaging_cert,
             ca_cert=self.messaging_ca_cert,
             retries=self.retries,
+            errors=errors,
         ).run()
 
         if errors:
