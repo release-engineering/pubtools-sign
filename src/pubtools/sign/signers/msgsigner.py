@@ -132,12 +132,17 @@ class MsgSigner(Signer):
     ]
 
     def _construct_signing_message(
-        self: MsgSigner, claim, signing_key, extra_attrs: Optional[Dict] = None
+        self: MsgSigner,
+        claim,
+        signing_key,
+        extra_attrs: Optional[Dict] = None,
+        sig_type: str = "container_signature",
     ):
+        data_attr = "claim_file" if sig_type == "container_signature" else "data"
         _extra_attrs = extra_attrs or {}
         message = {
             "sig_key_id": signing_key,
-            "claim_file": claim,
+            data_attr: claim,
             "request_id": str(uuid.uuid4()),
             "created": isodate_now(),
             "requested_by": self.creator,
@@ -163,7 +168,7 @@ class MsgSigner(Signer):
         ret = MsgMessage(
             headers=self._construct_headers(sig_type, extra_attrs=extra_attrs),
             body=self._construct_signing_message(
-                data, operation.signing_key, extra_attrs=extra_attrs
+                data, operation.signing_key, extra_attrs=extra_attrs, sig_type=sig_type
             ),
             address=self.topic_send_to.format(
                 **dict(list(asdict(self).items()) + list(asdict(operation).items()))
@@ -225,7 +230,7 @@ class MsgSigner(Signer):
         message_to_data = {}
         for in_data in operation.inputs:
             message = self._create_msg_message(
-                in_data,
+                base64.b64encode(in_data.encode("latin1")),
                 operation,
                 "clearsig_signature",
                 extra_attrs={"pub_task_id": operation.task_id},
@@ -475,7 +480,7 @@ def msg_container_sign(signing_key=None, task_id=None, config=None, digest=None,
     signing_result = msg_signer.sign(operation)
     return {
         "signer_result": signing_result.signer_results.to_dict(),
-        "operation_results": signing_result.operation_result.outputs,
+        "operation_results": signing_result.operation_result.signed_claims,
         "signing_key": signing_result.operation_result.signing_key,
     }
 

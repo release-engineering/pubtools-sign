@@ -202,18 +202,35 @@ def test_create_msg_message(f_config_msg_signer_ok):
             operation = ClearSignOperation(
                 inputs=["test-data-inputs"], signing_key="test-key", task_id="1"
             )
-            assert signer._create_msg_message(data, operation, "test-sign") == MsgMessage(
+            assert signer._create_msg_message(data, operation, "container_signature") == MsgMessage(
                 headers={
                     "service": "pubtools-sign",
                     "environment": "prod",
                     "owner_id": "pubtools-sign-test",
-                    "mtype": "test-sign",
+                    "mtype": "container_signature",
                     "source": "metadata",
                 },
                 address="topic://Topic.sign",
                 body={
                     "sig_key_id": "test-key",
                     "claim_file": "test-data",
+                    "request_id": "1234-5678-abcd-efgh",
+                    "created": "created-date-Z",
+                    "requested_by": "pubtools-sign-test",
+                },
+            )
+            assert signer._create_msg_message(data, operation, "clearsign_signature") == MsgMessage(
+                headers={
+                    "service": "pubtools-sign",
+                    "environment": "prod",
+                    "owner_id": "pubtools-sign-test",
+                    "mtype": "clearsign_signature",
+                    "source": "metadata",
+                },
+                address="topic://Topic.sign",
+                body={
+                    "sig_key_id": "test-key",
+                    "data": "test-data",
                     "request_id": "1234-5678-abcd-efgh",
                     "created": "created-date-Z",
                     "requested_by": "pubtools-sign-test",
