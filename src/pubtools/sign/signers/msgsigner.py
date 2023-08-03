@@ -230,7 +230,7 @@ class MsgSigner(Signer):
         message_to_data = {}
         for in_data in operation.inputs:
             message = self._create_msg_message(
-                base64.b64encode(in_data.encode("latin1")),
+                base64.b64encode(in_data.encode("latin1")).decode("latin-1"),
                 operation,
                 "clearsig_signature",
                 extra_attrs={"pub_task_id": operation.task_id},
