@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 from dataclasses import field, dataclass, asdict
+import enum
 import json
 import logging
 from typing import Dict, List, ClassVar, Any, Optional
@@ -26,6 +27,13 @@ from ..utils import set_log_level, isodate_now
 
 
 LOG = logging.getLogger("pubtools.sign.signers.msgsigner")
+
+
+class SignRequestType(str, enum.Enum):
+    """Sign request type enum."""
+
+    CONTAINER = "container_signature"
+    CLEARSIGN = "clearsign_signature"
 
 
 @dataclass()
@@ -136,9 +144,9 @@ class MsgSigner(Signer):
         claim,
         signing_key,
         extra_attrs: Optional[Dict] = None,
-        sig_type: str = "container_signature",
+        sig_type: SignRequestType = SignRequestType.CONTAINER,
     ):
-        data_attr = "claim_file" if sig_type == "container_signature" else "data"
+        data_attr = "claim_file" if sig_type == SignRequestType.CONTAINER else "data"
         _extra_attrs = extra_attrs or {}
         message = {
             "sig_key_id": signing_key,
@@ -163,7 +171,7 @@ class MsgSigner(Signer):
         return headers
 
     def _create_msg_message(
-        self: MsgSigner, data, operation: SignOperation, sig_type: str, extra_attrs=None
+        self: MsgSigner, data, operation: SignOperation, sig_type: SignRequestType, extra_attrs=None
     ):
         ret = MsgMessage(
             headers=self._construct_headers(sig_type, extra_attrs=extra_attrs),
@@ -334,7 +342,7 @@ class MsgSigner(Signer):
                     operation.signing_key, digest=digest, reference=reference
                 ),
                 operation,
-                "container_signature",
+                SignRequestType.CONTAINER,
                 extra_attrs={"pub_task_id": operation.task_id},
             )
             message_to_data[message.body["request_id"]] = message
