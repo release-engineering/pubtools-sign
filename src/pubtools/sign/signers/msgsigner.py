@@ -163,7 +163,7 @@ class MsgSigner(Signer):
             "service": self.service,
             "environment": self.environment,
             "owner_id": self.creator,
-            "mtype": sig_type,
+            "mtype": sig_type.value,
             "source": "metadata",
         }
         if extra_attrs:
@@ -176,7 +176,7 @@ class MsgSigner(Signer):
         ret = MsgMessage(
             headers=self._construct_headers(sig_type, extra_attrs=extra_attrs),
             body=self._construct_signing_message(
-                data, operation.signing_key, extra_attrs=extra_attrs, sig_type=sig_type
+                data, operation.signing_key, extra_attrs=extra_attrs, sig_type=sig_type.value
             ),
             address=self.topic_send_to.format(
                 **dict(list(asdict(self).items()) + list(asdict(operation).items()))
@@ -240,7 +240,7 @@ class MsgSigner(Signer):
             message = self._create_msg_message(
                 base64.b64encode(in_data.encode("latin1")).decode("latin-1"),
                 operation,
-                "clearsig_signature",
+                SignRequestType.CLEARSIGN,
                 extra_attrs={"pub_task_id": operation.task_id},
             )
             message_to_data[message.body["request_id"]] = message
@@ -421,7 +421,7 @@ def _get_config_file(config_candidate):
     return config_candidate
 
 
-def _msg_clear_sign(inputs, signing_key=None, task_id=None, config=None):
+def msg_clear_sign(inputs, signing_key=None, task_id=None, config=None):
     """Run clearsign operation."""
     msg_signer = MsgSigner()
     config = _get_config_file(config)
@@ -435,9 +435,40 @@ def _msg_clear_sign(inputs, signing_key=None, task_id=None, config=None):
             str_inputs.append(input_)
     operation = ClearSignOperation(inputs=str_inputs, signing_key=signing_key, task_id=task_id)
     signing_result = msg_signer.sign(operation)
+    print(
+        {
+            "signer_result": signing_result.signer_results.to_dict(),
+            "operation_results": signing_result.operation_result.outputs,
+            "signing_key": signing_result.operation_result.signing_key,
+        }
+    )
     return {
         "signer_result": signing_result.signer_results.to_dict(),
         "operation_results": signing_result.operation_result.outputs,
+        "signing_key": signing_result.operation_result.signing_key,
+    }
+
+
+def msg_container_sign(signing_key=None, task_id=None, config=None, digest=None, reference=None):
+    """Run containersign operation with cli arguments."""
+    msg_signer = MsgSigner()
+    config = _get_config_file(config)
+    msg_signer.load_config(load_config(os.path.expanduser(config)))
+
+    operation = ContainerSignOperation(
+        digests=digest, references=reference, signing_key=signing_key, task_id=task_id
+    )
+    signing_result = msg_signer.sign(operation)
+    print(
+        {
+            "signer_result": signing_result.signer_results.to_dict(),
+            "operation_results": signing_result.operation_result.signed_claims,
+            "signing_key": signing_result.operation_result.signing_key,
+        }
+    )
+    return {
+        "signer_result": signing_result.signer_results.to_dict(),
+        "operation_results": signing_result.operation_result.signed_claims,
         "signing_key": signing_result.operation_result.signing_key,
     }
 
@@ -451,9 +482,11 @@ def _msg_clear_sign(inputs, signing_key=None, task_id=None, config=None):
 @click.option("--task-id", required=True, help="Task id identifier (usually pub task-id)")
 @click.option("--config", default=CONFIG_PATHS[0], help="path to the config file")
 @click.argument("inputs", nargs=-1)
-def msg_clear_sign(inputs, signing_key=None, task_id=None, config=None):
-    """Run clearsign operation with cli arguments."""
-    return _msg_clear_sign(inputs, signing_key=signing_key, task_id=task_id, config=config)
+def msg_clear_sign_main(inputs, signing_key=None, task_id=None, config=None):
+    """Entry point method for clearsign operation."""
+    click.echo(
+        json.dumps(msg_clear_sign(inputs, signing_key=signing_key, task_id=task_id, config=config))
+    )
 
 
 @click.command()
@@ -478,28 +511,18 @@ def msg_clear_sign(inputs, signing_key=None, task_id=None, config=None):
     type=str,
     help="References which should be signed.",
 )
-def msg_container_sign(signing_key=None, task_id=None, config=None, digest=None, reference=None):
-    """Run containersign operation with cli arguments."""
-    msg_signer = MsgSigner()
-    config = _get_config_file(config)
-    msg_signer.load_config(load_config(os.path.expanduser(config)))
-
-    operation = ContainerSignOperation(
-        digests=digest, references=reference, signing_key=signing_key, task_id=task_id
-    )
-    signing_result = msg_signer.sign(operation)
-    return {
-        "signer_result": signing_result.signer_results.to_dict(),
-        "operation_results": signing_result.operation_result.signed_claims,
-        "signing_key": signing_result.operation_result.signing_key,
-    }
-
-
-def msg_clear_sign_main():
-    """Entry point method for clearsign operation."""
-    print(json.dumps(msg_clear_sign()))
-
-
-def msg_container_sign_main():
+def msg_container_sign_main(
+    signing_key=None, task_id=None, config=None, digest=None, reference=None
+):
     """Entry point method for containersign operation."""
-    print(json.dumps(msg_container_sign()))
+    click.echo(
+        json.dumps(
+            msg_container_sign(
+                signing_key=signing_key,
+                task_id=task_id,
+                config=config,
+                digest=digest,
+                reference=reference,
+            )
+        )
+    )

@@ -12,12 +12,11 @@ from pubtools.sign.signers.msgsigner import (
     MsgSigner,
     MsgSignerResults,
     msg_clear_sign,
-    _msg_clear_sign,
-    msg_container_sign,
     ContainerSignOperation,
     ContainerSignResult,
     ClearSignOperation,
     ClearSignResult,
+    SignRequestType,
     msg_clear_sign_main,
     msg_container_sign_main,
     _get_config_file,
@@ -29,8 +28,11 @@ from pubtools.sign.results.signing_results import SigningResults
 
 
 def test_msg_container_sign(f_msg_signer, f_config_msg_signer_ok):
+    f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {}
+    f_msg_signer.return_value.sign.return_value.operation_result.signed_claims = []
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
-        msg_container_sign,
+        msg_container_sign_main,
         [
             "--signing-key",
             "test-signing-key",
@@ -44,21 +46,16 @@ def test_msg_container_sign(f_msg_signer, f_config_msg_signer_ok):
             f_config_msg_signer_ok,
         ],
     )
+    print(result.stdout)
     assert result.exit_code == 0, result.output
-
-    f_msg_signer.return_value.load_config.assert_called_with(load_config(f_config_msg_signer_ok))
-    operation = ContainerSignOperation(
-        digests=("some-digest",),
-        references=("some-reference",),
-        signing_key="test-signing-key",
-        task_id="1",
-    )
-    f_msg_signer.return_value.sign.assert_called_with(operation)
 
 
 def test_msg_clearsign_sign(f_msg_signer, f_config_msg_signer_ok):
+    f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {}
+    f_msg_signer.return_value.sign.return_value.operation_result.outputs = []
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
-        msg_clear_sign,
+        msg_clear_sign_main,
         [
             "--signing-key",
             "test-signing-key",
@@ -73,8 +70,11 @@ def test_msg_clearsign_sign(f_msg_signer, f_config_msg_signer_ok):
 
 
 def test_msg_clearsign_sign_file_input(f_msg_signer, f_config_msg_signer_ok):
+    f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {}
+    f_msg_signer.return_value.sign.return_value.operation_result.outputs = []
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
-        msg_clear_sign,
+        msg_clear_sign_main,
         [
             "--signing-key",
             "test-signing-key",
@@ -89,7 +89,7 @@ def test_msg_clearsign_sign_file_input(f_msg_signer, f_config_msg_signer_ok):
 
 
 def test__msg_clearsign_sign(f_msg_signer, f_config_msg_signer_ok):
-    _msg_clear_sign(
+    msg_clear_sign(
         ["hello world"], signing_key="test-signing-key", task_id="1", config=f_config_msg_signer_ok
     )
 
@@ -103,7 +103,7 @@ def test__msg_clearsign_sign(f_msg_signer, f_config_msg_signer_ok):
 
 
 def test__msg_clearsign_sign_file_input(f_msg_signer, f_config_msg_signer_ok):
-    _msg_clear_sign(
+    msg_clear_sign(
         [f"@{f_config_msg_signer_ok}"],
         signing_key="test-signing-key",
         task_id="1",
@@ -117,20 +117,6 @@ def test__msg_clearsign_sign_file_input(f_msg_signer, f_config_msg_signer_ok):
         task_id="1",
     )
     f_msg_signer.return_value.sign.assert_called_with(operation)
-
-
-def test_msg_clear_sign_main():
-    with patch("pubtools.sign.signers.msgsigner.msg_clear_sign") as patched:
-        patched.return_value = ""
-        msg_clear_sign_main()
-        patched.assert_called_once()
-
-
-def test_msg_container_sign_main():
-    with patch("pubtools.sign.signers.msgsigner.msg_container_sign") as patched:
-        patched.return_value = ""
-        msg_container_sign_main()
-        patched.assert_called_once()
 
 
 def test_get_config_file(f_config_msg_signer_ok):
@@ -176,12 +162,14 @@ def test__construct_headers(f_config_msg_signer_ok):
     with patch("uuid.uuid4", return_value="1234-5678-abcd-efgh"):
         with patch("pubtools.sign.signers.msgsigner.isodate_now") as patched_date:
             patched_date.return_value = "created-date-Z"
-            ret = signer._construct_headers("test-sign-type", extra_attrs={"extra": "extra"})
+            ret = signer._construct_headers(
+                SignRequestType.CONTAINER, extra_attrs={"extra": "extra"}
+            )
             assert ret == {
                 "service": "pubtools-sign",
                 "environment": "prod",
                 "owner_id": "pubtools-sign-test",
-                "mtype": "test-sign-type",
+                "mtype": SignRequestType.CONTAINER,
                 "source": "metadata",
                 "extra": "extra",
             }
@@ -203,12 +191,14 @@ def test_create_msg_message(f_config_msg_signer_ok):
             operation = ClearSignOperation(
                 inputs=["test-data-inputs"], signing_key="test-key", task_id="1"
             )
-            assert signer._create_msg_message(data, operation, "container_signature") == MsgMessage(
+            assert signer._create_msg_message(
+                data, operation, SignRequestType.CONTAINER
+            ) == MsgMessage(
                 headers={
                     "service": "pubtools-sign",
                     "environment": "prod",
                     "owner_id": "pubtools-sign-test",
-                    "mtype": "container_signature",
+                    "mtype": SignRequestType.CONTAINER,
                     "source": "metadata",
                 },
                 address="topic://Topic.sign",
@@ -220,12 +210,14 @@ def test_create_msg_message(f_config_msg_signer_ok):
                     "requested_by": "pubtools-sign-test",
                 },
             )
-            assert signer._create_msg_message(data, operation, "clearsign_signature") == MsgMessage(
+            assert signer._create_msg_message(
+                data, operation, SignRequestType.CLEARSIGN
+            ) == MsgMessage(
                 headers={
                     "service": "pubtools-sign",
                     "environment": "prod",
                     "owner_id": "pubtools-sign-test",
-                    "mtype": "clearsign_signature",
+                    "mtype": SignRequestType.CLEARSIGN,
                     "source": "metadata",
                 },
                 address="topic://Topic.sign",

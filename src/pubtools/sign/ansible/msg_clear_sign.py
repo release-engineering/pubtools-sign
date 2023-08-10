@@ -8,7 +8,7 @@ import yaml
 
 from pubtools.sign.results import ClearSignResult
 from pubtools.sign.operations.clearsign import ClearSignOperation
-from pubtools.sign.signers.msgsigner import MsgSigner, _msg_clear_sign, MsgSignerResults
+from pubtools.sign.signers.msgsigner import MsgSigner, msg_clear_sign, MsgSignerResults
 
 __metaclass__ = type
 
@@ -90,7 +90,7 @@ def run_module():
 
     # Call clear sign and return signed data
     try:
-        signing_result = _msg_clear_sign(
+        signing_result = msg_clear_sign(
             inputs, signing_key=signing_key, task_id=task_id, config=config
         )
     except Exception as ex:
