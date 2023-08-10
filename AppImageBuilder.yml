@@ -22,7 +22,7 @@ AppDir:
     # Set the python executable as entry point
     exec: usr/bin/python3
     # Set the application main script path as argument. Use '$@' to forward CLI parameters
-    exec_args: "$APPDIR/usr/bin/pubtools-sign-radas-clear-sign $@"
+    exec_args: "$APPDIR/usr/bin/pubtools-sign $@"
 
   apt:
     arch: amd64
