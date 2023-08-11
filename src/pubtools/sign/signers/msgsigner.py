@@ -421,7 +421,7 @@ def _get_config_file(config_candidate):
     return config_candidate
 
 
-def msg_clear_sign(inputs, signing_key=None, task_id=None, config=None):
+def msg_clear_sign(inputs, signing_key=None, task_id=None, config=""):
     """Run clearsign operation."""
     msg_signer = MsgSigner()
     config = _get_config_file(config)
@@ -435,13 +435,6 @@ def msg_clear_sign(inputs, signing_key=None, task_id=None, config=None):
             str_inputs.append(input_)
     operation = ClearSignOperation(inputs=str_inputs, signing_key=signing_key, task_id=task_id)
     signing_result = msg_signer.sign(operation)
-    print(
-        {
-            "signer_result": signing_result.signer_results.to_dict(),
-            "operation_results": signing_result.operation_result.outputs,
-            "signing_key": signing_result.operation_result.signing_key,
-        }
-    )
     return {
         "signer_result": signing_result.signer_results.to_dict(),
         "operation_results": signing_result.operation_result.outputs,
@@ -449,7 +442,7 @@ def msg_clear_sign(inputs, signing_key=None, task_id=None, config=None):
     }
 
 
-def msg_container_sign(signing_key=None, task_id=None, config=None, digest=None, reference=None):
+def msg_container_sign(signing_key=None, task_id=None, config="", digest=None, reference=None):
     """Run containersign operation with cli arguments."""
     msg_signer = MsgSigner()
     config = _get_config_file(config)
@@ -459,13 +452,6 @@ def msg_container_sign(signing_key=None, task_id=None, config=None, digest=None,
         digests=digest, references=reference, signing_key=signing_key, task_id=task_id
     )
     signing_result = msg_signer.sign(operation)
-    print(
-        {
-            "signer_result": signing_result.signer_results.to_dict(),
-            "operation_results": signing_result.operation_result.signed_claims,
-            "signing_key": signing_result.operation_result.signing_key,
-        }
-    )
     return {
         "signer_result": signing_result.signer_results.to_dict(),
         "operation_results": signing_result.operation_result.signed_claims,
