@@ -8,7 +8,7 @@ class MsgSignerSchema(ma.Schema):
     """Radas signer configuration schema."""
 
     messaging_brokers = ma.fields.List(ma.fields.String(), required=True)
-    messaging_cert = ma.fields.String(required=True)
+    messaging_cert_key = ma.fields.String(required=True)
     messaging_ca_cert = ma.fields.String(required=True)
     topic_send_to = ma.fields.String(required=True)
     topic_listen_to = ma.fields.String(required=True)

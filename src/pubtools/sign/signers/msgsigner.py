@@ -76,11 +76,11 @@ class MsgSigner(Signer):
             ],
         },
     )
-    messaging_cert: str = field(
+    messaging_cert_key: str = field(
         init=False,
         metadata={
-            "description": "Client certificate for messaging authorization",
-            "sample": "~/messaging/cert.crt",
+            "description": "Client certificate + key for messaging authorization",
+            "sample": "~/messaging/cert.pem",
         },
     )
     messaging_ca_cert: str = field(
@@ -188,7 +188,9 @@ class MsgSigner(Signer):
     def load_config(self: MsgSigner, config_data: Dict[str, Any]) -> None:
         """Load configuration of messaging signer."""
         self.messaging_brokers = config_data["msg_signer"]["messaging_brokers"]
-        self.messaging_cert = os.path.expanduser(config_data["msg_signer"]["messaging_cert"])
+        self.messaging_cert_key = os.path.expanduser(
+            config_data["msg_signer"]["messaging_cert_key"]
+        )
         self.messaging_ca_cert = os.path.expanduser(config_data["msg_signer"]["messaging_ca_cert"])
         self.topic_send_to = config_data["msg_signer"]["topic_send_to"]
         self.topic_listen_to = config_data["msg_signer"]["topic_listen_to"]
@@ -202,7 +204,7 @@ class MsgSigner(Signer):
 
     def _get_cert_subject_cn(self):
         x509 = OpenSSL.crypto.load_certificate(
-            OpenSSL.crypto.FILETYPE_PEM, open(os.path.expanduser(self.messaging_cert)).read()
+            OpenSSL.crypto.FILETYPE_PEM, open(os.path.expanduser(self.messaging_cert_key)).read()
         )
         return x509.get_subject().CN
 
@@ -262,7 +264,7 @@ class MsgSigner(Signer):
         errors = SendClient(
             messages=messages,
             broker_urls=self.messaging_brokers,
-            cert=self.messaging_cert,
+            cert=self.messaging_cert_key,
             ca_cert=self.messaging_ca_cert,
             retries=self.retries,
             errors=errors,
@@ -283,7 +285,7 @@ class MsgSigner(Signer):
             ),
             id_key=self.message_id_key,
             broker_urls=self.messaging_brokers,
-            cert=self.messaging_cert,
+            cert=self.messaging_cert_key,
             ca_cert=self.messaging_ca_cert,
             timeout=self.timeout,
             retries=self.retries,
@@ -364,7 +366,7 @@ class MsgSigner(Signer):
         errors = SendClient(
             messages=messages,
             broker_urls=self.messaging_brokers,
-            cert=self.messaging_cert,
+            cert=self.messaging_cert_key,
             ca_cert=self.messaging_ca_cert,
             retries=self.retries,
             errors=errors,
@@ -385,7 +387,7 @@ class MsgSigner(Signer):
             ),
             id_key=self.message_id_key,
             broker_urls=self.messaging_brokers,
-            cert=self.messaging_cert,
+            cert=self.messaging_cert_key,
             ca_cert=self.messaging_ca_cert,
             timeout=self.timeout,
             retries=self.retries,

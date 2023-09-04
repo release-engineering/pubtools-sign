@@ -445,7 +445,7 @@ msg_signer:
   messaging_brokers:
     - amqps://broker-01:5671
     - amqps://broker-02:5671
-  messaging_cert: {f_client_certificate}
+  messaging_cert_key: {f_client_certificate}
   messaging_ca_cert: ~/messaging/ca-cert.crt
   topic_send_to: topic://Topic.sign
   topic_listen_to: queue://Consumer.{{creator}}.{{task_id}}.Topic.sign.{{task_id}}
@@ -472,7 +472,7 @@ msg_signer:
   messaging_brokers:
     - amqps://broker-01:5671
     - amqps://broker-02:5671
-  messaging_cert: {f_client_certificate}
+  messaging_cert_key: {f_client_certificate}
   messaging_ca_cert: ~/messaging/ca-cert.crt
   topic_listen_to: queue://Consumer.{{creator}}.{{task_id}}.Topic.sign.{{task_id}}
   environment: prod

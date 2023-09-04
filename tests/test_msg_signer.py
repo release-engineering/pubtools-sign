@@ -495,7 +495,9 @@ def test_msgsig_doc_arguments():
     assert MsgSigner.doc_arguments() == {
         "options": {
             "messaging_brokers": {"description": "List of brokers URLS"},
-            "messaging_cert": {"description": "Client certificate for messaging authorization"},
+            "messaging_cert_key": {
+                "description": "Client certificate + key for messaging authorization"
+            },
             "messaging_ca_cert": {"description": "Messaging CA certificate"},
             "topic_send_to": {"description": "Topic where to send the messages"},
             "topic_listen_to": {"description": "Topic where to listen for replies"},
@@ -512,7 +514,7 @@ def test_msgsig_doc_arguments():
         "examples": {
             "msg_signer": {
                 "messaging_brokers": ["amqps://broker-01:5671", "amqps://broker-02:5671"],
-                "messaging_cert": "~/messaging/cert.crt",
+                "messaging_cert_key": "~/messaging/cert.pem",
                 "messaging_ca_cert": "~/messaging/ca_cert.crt",
                 "topic_send_to": "topic://Topic.sign",
                 "topic_listen_to": "queue://Consumer.{{creator}}.{{task_id}}.Topic.sign."
