@@ -475,12 +475,16 @@ def msg_clear_sign_main(inputs, signing_key=None, task_id=None, config=None, raw
     ret = msg_clear_sign(inputs, signing_key=signing_key, task_id=task_id, config=config)
     if not raw:
         click.echo(json.dumps(ret))
-    if ret["signer_result"]["status"] == "error":
-        print(ret["signer_result"]["error_message"], file=sys.stderr)
-        sys.exit(1)
+        print(ret)
+        if ret["signer_result"]["status"] == "error":
+            sys.exit(1)
     else:
-        for claim in ret["operation_results"]:
-            print(claim)
+        if ret["signer_result"]["status"] == "error":
+            print(ret["signer_result"]["error_message"], file=sys.stderr)
+            sys.exit(1)
+        else:
+            for claim in ret["operation_results"]:
+                print(claim)
 
 
 @click.command()
@@ -519,6 +523,8 @@ def msg_container_sign_main(
     )
     if not raw:
         click.echo(json.dumps(ret))
+        if ret["signer_result"]["status"] == "error":
+            sys.exit(1)
     else:
         if ret["signer_result"]["status"] == "error":
             print(ret["signer_result"]["error_message"], file=sys.stderr)
