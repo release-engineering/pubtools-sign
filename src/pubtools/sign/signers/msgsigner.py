@@ -8,6 +8,7 @@ import logging
 from typing import Dict, List, ClassVar, Any, Optional
 import uuid
 import os
+import sys
 
 import OpenSSL
 import click
@@ -467,12 +468,19 @@ def msg_container_sign(signing_key=None, task_id=None, config="", digest=None, r
 )
 @click.option("--task-id", required=True, help="Task id identifier (usually pub task-id)")
 @click.option("--config", default=CONFIG_PATHS[0], help="path to the config file")
+@click.option("--raw", default=False, is_flag=True, help="Print raw output instead of json")
 @click.argument("inputs", nargs=-1)
-def msg_clear_sign_main(inputs, signing_key=None, task_id=None, config=None):
+def msg_clear_sign_main(inputs, signing_key=None, task_id=None, config=None, raw=None):
     """Entry point method for clearsign operation."""
-    click.echo(
-        json.dumps(msg_clear_sign(inputs, signing_key=signing_key, task_id=task_id, config=config))
-    )
+    ret = msg_clear_sign(inputs, signing_key=signing_key, task_id=task_id, config=config)
+    if not raw:
+        click.echo(json.dumps(ret))
+    if ret["signer_result"]["status"] == "error":
+        print(ret["signer_result"]["error_message"], file=sys.stderr)
+        sys.exit(1)
+    else:
+        for claim in ret["operation_results"]:
+            print(claim)
 
 
 @click.command()
@@ -497,18 +505,24 @@ def msg_clear_sign_main(inputs, signing_key=None, task_id=None, config=None):
     type=str,
     help="References which should be signed.",
 )
+@click.option("--raw", default=False, is_flag=True, help="Print raw output instead of json")
 def msg_container_sign_main(
-    signing_key=None, task_id=None, config=None, digest=None, reference=None
+    signing_key=None, task_id=None, config=None, digest=None, reference=None, raw=None
 ):
     """Entry point method for containersign operation."""
-    click.echo(
-        json.dumps(
-            msg_container_sign(
-                signing_key=signing_key,
-                task_id=task_id,
-                config=config,
-                digest=digest,
-                reference=reference,
-            )
-        )
+    ret = msg_container_sign(
+        signing_key=signing_key,
+        task_id=task_id,
+        config=config,
+        digest=digest,
+        reference=reference,
     )
+    if not raw:
+        click.echo(json.dumps(ret))
+    else:
+        if ret["signer_result"]["status"] == "error":
+            print(ret["signer_result"]["error_message"], file=sys.stderr)
+            sys.exit(1)
+        else:
+            for claim in ret["operation_results"]:
+                print(claim)

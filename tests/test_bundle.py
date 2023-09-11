@@ -4,7 +4,9 @@ from pubtools.sign.bundle import cli
 
 
 def test_bundle_msg_container_sign(f_msg_signer, f_config_msg_signer_ok):
-    f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {}
+    f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
+        "status": "ok"
+    }
     f_msg_signer.return_value.sign.return_value.operation_result.signed_claims = []
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
@@ -27,7 +29,9 @@ def test_bundle_msg_container_sign(f_msg_signer, f_config_msg_signer_ok):
 
 
 def test_bundle_msg_clear_sign(f_msg_signer, f_config_msg_signer_ok):
-    f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {}
+    f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
+        "status": "ok"
+    }
     f_msg_signer.return_value.sign.return_value.operation_result.outputs = []
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
