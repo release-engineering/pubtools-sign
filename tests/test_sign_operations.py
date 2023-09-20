@@ -13,8 +13,19 @@ def test_containersign_operation_doc_argument():
             "task_id": {
                 "description": "Usually pub task id, serves as identifier for in signing request"
             },
+            "repository": {
+                "type": "str",
+                "description": "Repository name",
+                "required": "true",
+            },
         },
-        "examples": {"digests": "", "references": "", "signing_key": "", "task_id": ""},
+        "examples": {
+            "digests": "",
+            "references": "",
+            "signing_key": "",
+            "task_id": "",
+            "repository": "repository",
+        },
     }
 
 
@@ -32,6 +43,16 @@ def test_clearsign_operation_doc_argument():
                 "description": "Usually pub task id, serves as identifier for in signing request",
                 "required": "true",
             },
+            "repository": {
+                "type": "str",
+                "description": "Repository name",
+                "required": "true",
+            },
         },
-        "examples": {"inputs": ["input1", "input2"], "signing_key": "123", "task_id": "1"},
+        "examples": {
+            "inputs": ["input1", "input2"],
+            "signing_key": "123",
+            "task_id": "1",
+            "repository": "repository",
+        },
     }

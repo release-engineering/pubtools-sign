@@ -22,3 +22,11 @@ class ContainerSignOperation(SignOperation):
     task_id: str = field(
         metadata={"description": "Usually pub task id, serves as identifier for in signing request"}
     )
+    repository: str = field(
+        metadata={
+            "type": "str",
+            "description": "Repository name",
+            "required": "true",
+            "sample": "repository",
+        }
+    )
