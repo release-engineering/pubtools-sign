@@ -59,14 +59,14 @@ def test_run_module_ok(clear_sign_mock, f_config_msg_signer_ok):
         "signing_key": "test-signing-key",
         "task_id": "1",
         "config": f_config_msg_signer_ok,
-        "repository": "repository",
+        "repo": "repo",
     }
 
     clear_sign_operation = ClearSignOperation(
         inputs=parameters["inputs"],
         signing_key=parameters["signing_key"],
         task_id="1",
-        repository="repository",
+        repo="repo",
     )
 
     clear_sign_mock.return_value = SigningResults(
@@ -107,14 +107,14 @@ def test_run_module_failed(clear_sign_mock, f_config_msg_signer_ok):
         "signing_key": "test-signing-key",
         "task_id": "1",
         "config": f_config_msg_signer_ok,
-        "repository": "repo",
+        "repo": "repo",
     }
 
     clear_sign_operation = ClearSignOperation(
         inputs=parameters["inputs"],
         signing_key=parameters["signing_key"],
         task_id="1",
-        repository="repository",
+        repo="repo",
     )
 
     clear_sign_mock.return_value = SigningResults(
@@ -140,7 +140,7 @@ def test_run_module_exception(sign_mock, f_config_msg_signer_ok):
         "inputs": ["hello world"],
         "signing_key": "test-signing-key",
         "task_id": "1",
-        "repository": "repo",
+        "repo": "repo",
         "config": f_config_msg_signer_ok,
     }
     set_module_args(parameters)
@@ -158,7 +158,7 @@ def test_run_module_check_mode(sign_mock, f_config_msg_signer_ok):
         "task_id": "1",
         "config": f_config_msg_signer_ok,
         "_ansible_check_mode": True,
-        "repository": "repository",
+        "repo": "repo",
     }
     set_module_args(parameters)
     with pytest.raises(AnsibleExitJson):

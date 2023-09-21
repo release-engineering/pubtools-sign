@@ -144,7 +144,7 @@ class MsgSigner(Signer):
         self: MsgSigner,
         claim,
         signing_key: str,
-        repository: str,
+        repo: str,
         extra_attrs: Optional[Dict] = None,
         sig_type: SignRequestType = SignRequestType.CONTAINER,
     ):
@@ -156,7 +156,7 @@ class MsgSigner(Signer):
             "request_id": str(uuid.uuid4()),
             "created": isodate_now(),
             "requested_by": self.creator,
-            "repository": repository,
+            "repo": repo,
         }
         message.update(_extra_attrs)
         return message
@@ -181,7 +181,7 @@ class MsgSigner(Signer):
             body=self._construct_signing_message(
                 data,
                 operation.signing_key,
-                repository=operation.repository,
+                repo=operation.repo,
                 extra_attrs=extra_attrs,
                 sig_type=sig_type.value,
             ),
@@ -430,7 +430,7 @@ def _get_config_file(config_candidate):
     return config_candidate
 
 
-def msg_clear_sign(inputs, signing_key=None, task_id=None, config="", repository=""):
+def msg_clear_sign(inputs, signing_key=None, task_id=None, config="", repo=""):
     """Run clearsign operation."""
     msg_signer = MsgSigner()
     config = _get_config_file(config)
@@ -443,7 +443,7 @@ def msg_clear_sign(inputs, signing_key=None, task_id=None, config="", repository
         else:
             str_inputs.append(input_)
     operation = ClearSignOperation(
-        inputs=str_inputs, signing_key=signing_key, task_id=task_id, repository=repository
+        inputs=str_inputs, signing_key=signing_key, task_id=task_id, repo=repo
     )
     signing_result = msg_signer.sign(operation)
     return {
@@ -454,7 +454,7 @@ def msg_clear_sign(inputs, signing_key=None, task_id=None, config="", repository
 
 
 def msg_container_sign(
-    signing_key=None, task_id=None, config="", digest=None, reference=None, repository=None
+    signing_key=None, task_id=None, config="", digest=None, reference=None, repo=None
 ):
     """Run containersign operation with cli arguments."""
     msg_signer = MsgSigner()
@@ -466,7 +466,7 @@ def msg_container_sign(
         references=reference,
         signing_key=signing_key,
         task_id=task_id,
-        repository=repository,
+        repo=repo,
     )
     signing_result = msg_signer.sign(operation)
     return {
@@ -485,15 +485,11 @@ def msg_container_sign(
 @click.option("--task-id", required=True, help="Task id identifier (usually pub task-id)")
 @click.option("--config", default=CONFIG_PATHS[0], help="path to the config file")
 @click.option("--raw", default=False, is_flag=True, help="Print raw output instead of json")
-@click.option("--repository", help="Repository reference")
+@click.option("--repo", help="Repository reference")
 @click.argument("inputs", nargs=-1)
-def msg_clear_sign_main(
-    inputs, signing_key=None, task_id=None, config=None, raw=None, repository=None
-):
+def msg_clear_sign_main(inputs, signing_key=None, task_id=None, config=None, raw=None, repo=None):
     """Entry point method for clearsign operation."""
-    ret = msg_clear_sign(
-        inputs, signing_key=signing_key, task_id=task_id, repository=repository, config=config
-    )
+    ret = msg_clear_sign(inputs, signing_key=signing_key, task_id=task_id, repo=repo, config=config)
     if not raw:
         click.echo(json.dumps(ret))
         print(ret)
@@ -531,7 +527,7 @@ def msg_clear_sign_main(
     help="References which should be signed.",
 )
 @click.option("--raw", default=False, is_flag=True, help="Print raw output instead of json")
-@click.option("--repository", help="Repository reference")
+@click.option("--repo", help="Repository reference")
 def msg_container_sign_main(
     signing_key=None,
     task_id=None,
@@ -539,7 +535,7 @@ def msg_container_sign_main(
     digest=None,
     reference=None,
     raw=None,
-    repository=None,
+    repo=None,
 ):
     """Entry point method for containersign operation."""
     ret = msg_container_sign(
@@ -548,7 +544,7 @@ def msg_container_sign_main(
         config=config,
         digest=digest,
         reference=reference,
-        repository=repository,
+        repo=repo,
     )
     if not raw:
         click.echo(json.dumps(ret))
