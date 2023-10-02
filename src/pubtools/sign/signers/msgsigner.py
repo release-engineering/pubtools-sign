@@ -485,10 +485,23 @@ def msg_container_sign(
 @click.option("--task-id", required=True, help="Task id identifier (usually pub task-id)")
 @click.option("--config", default=CONFIG_PATHS[0], help="path to the config file")
 @click.option("--raw", default=False, is_flag=True, help="Print raw output instead of json")
+@click.option(
+    "--log-level",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"]),
+    default="INFO",
+    help="Set log level",
+)
 @click.option("--repo", help="Repository reference")
 @click.argument("inputs", nargs=-1)
-def msg_clear_sign_main(inputs, signing_key=None, task_id=None, config=None, raw=None, repo=None):
+def msg_clear_sign_main(
+    inputs, signing_key=None, task_id=None, config=None, raw=None, log_level=None, repo=None
+):
     """Entry point method for clearsign operation."""
+    ch = logging.StreamHandler()
+    ch.setLevel(getattr(logging, log_level))
+    LOG.addHandler(ch)
+    logging.basicConfig(encoding="utf-8", level=getattr(logging, log_level))
+
     ret = msg_clear_sign(inputs, signing_key=signing_key, task_id=task_id, repo=repo, config=config)
     if not raw:
         click.echo(json.dumps(ret))
@@ -527,6 +540,12 @@ def msg_clear_sign_main(inputs, signing_key=None, task_id=None, config=None, raw
     help="References which should be signed.",
 )
 @click.option("--raw", default=False, is_flag=True, help="Print raw output instead of json")
+@click.option(
+    "--log-level",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"]),
+    default="INFO",
+    help="Set log level",
+)
 @click.option("--repo", help="Repository reference")
 def msg_container_sign_main(
     signing_key=None,
@@ -535,9 +554,15 @@ def msg_container_sign_main(
     digest=None,
     reference=None,
     raw=None,
+    log_level=None,
     repo=None,
 ):
     """Entry point method for containersign operation."""
+    ch = logging.StreamHandler()
+    ch.setLevel(getattr(logging, log_level))
+    LOG.addHandler(ch)
+    logging.basicConfig(encoding="utf-8", level=getattr(logging, log_level))
+
     ret = msg_container_sign(
         signing_key=signing_key,
         task_id=task_id,

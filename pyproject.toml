@@ -67,3 +67,6 @@ pubtools-sign-msg-clear-sign = "pubtools.sign.signers.msgsigner:msg_clear_sign_m
 pubtools-sign-msg-container-sign = "pubtools.sign.signers.msgsigner:msg_container_sign_main"
 pubtools-sign = "pubtools.sign.bundle:cli"
 
+[project.entry-points.modules]
+pubtools-sign-msg-clear-sign = "pubtools.sign.signers.msgsigner:msg_clear_sign"
+pubtools-sign-msg-container-sign = "pubtools.sign.signers.msgsigner:msg_container_sign"
