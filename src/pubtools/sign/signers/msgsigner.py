@@ -24,7 +24,7 @@ from ..clients.msg_send_client import SendClient
 from ..clients.msg_recv_client import RecvClient
 from ..models.msg import MsgMessage
 from ..conf.conf import load_config, CONFIG_PATHS
-from ..utils import set_log_level, isodate_now
+from ..utils import set_log_level, isodate_now, _get_config_file
 
 
 LOG = logging.getLogger("pubtools.sign.signers.msgsigner")
@@ -139,6 +139,8 @@ class MsgSigner(Signer):
         ContainerSignOperation,
         ClearSignOperation,
     ]
+
+    _signer_config_key: str = "msg_signer"
 
     def _construct_signing_message(
         self: MsgSigner,
@@ -416,18 +418,6 @@ class MsgSigner(Signer):
             operation_result.signed_claims[messages.index(message_to_data[recv_id])] = received
         signing_results.operation_result = operation_result
         return signing_results
-
-
-def _get_config_file(config_candidate):
-    if not os.path.exists(config_candidate):
-        for config_candidate in CONFIG_PATHS:
-            if os.path.exists(os.path.expanduser(config_candidate)):
-                break
-        else:
-            raise ValueError(
-                "No configuration file found: %s" % list(set(CONFIG_PATHS + [config_candidate]))
-            )
-    return config_candidate
 
 
 def msg_clear_sign(inputs, signing_key=None, task_id=None, config="", repo=""):

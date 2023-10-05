@@ -65,5 +65,6 @@ build-backend = "hatchling.build"
 [project.scripts]
 pubtools-sign-msg-clear-sign = "pubtools.sign.signers.msgsigner:msg_clear_sign_main"
 pubtools-sign-msg-container-sign = "pubtools.sign.signers.msgsigner:msg_container_sign_main"
+pubtools-sign-cosign-container-sign = "pubtools.sign.signers.cosignsigner:cosign_container_sign_main"
 pubtools-sign = "pubtools.sign.bundle:cli"
 

@@ -20,10 +20,24 @@ class MsgSignerSchema(ma.Schema):
     log_level = ma.fields.String(default="INFO")
 
 
+class CosignSignerSchema(ma.Schema):
+    """Cosign signer configuration schema."""
+
+    cosign_bin = ma.fields.String(required=False)
+    timeout = ma.fields.String(required=False)
+    allow_http_registry = ma.fields.Bool(required=False)
+    allow_insecure_registry = ma.fields.Bool(required=False)
+    rekor_url = ma.fields.String(required=False)
+    upload_tlog = ma.fields.Bool(required=False)
+    log_level = ma.fields.String(default="INFO")
+    env_variables = ma.fields.Dict(required=False)
+
+
 class ConfigSchema(ma.Schema):
     """pubtools-sign configuration schema."""
 
     msg_signer = ma.fields.Nested(MsgSignerSchema)
+    cosign_signer = ma.fields.Nested(CosignSignerSchema)
 
 
 def load_config(fname: str):

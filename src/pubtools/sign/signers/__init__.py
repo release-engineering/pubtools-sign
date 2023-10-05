@@ -39,6 +39,8 @@ class Signer(ABC):
         """
         ...  # pragma: no cover
 
+    _signer_config_key: str = "cosign_signer"
+
     @classmethod
     def doc_arguments(cls: Signer) -> Dict[str, Any]:
         """Return dict with arguments decription for the signer.
@@ -57,6 +59,6 @@ class Signer(ABC):
                 exmaple_arguments_doc[fn] = fv.metadata.get("sample", "")
 
         doc_arguments["options"] = options_arguments_doc
-        doc_arguments["examples"] = {"msg_signer": exmaple_arguments_doc}
+        doc_arguments["examples"] = {cls._signer_config_key: exmaple_arguments_doc}
 
         return doc_arguments
