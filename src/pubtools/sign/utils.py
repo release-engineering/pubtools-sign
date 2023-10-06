@@ -27,7 +27,7 @@ def isodate_now():
 
 
 def run_command(cmd, env=None):
-    """Run external command and return stdout, stderr, and return code."""
+    """Run external command and return Process instance."""
     process = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env
     )

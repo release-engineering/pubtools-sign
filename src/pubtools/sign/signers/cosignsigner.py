@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import field, dataclass
-import enum
 import json
 import logging
 from typing import Dict, List, ClassVar, Any
@@ -24,16 +23,9 @@ from ..utils import set_log_level, run_command, _get_config_file
 LOG = logging.getLogger("pubtools.sign.signers.cosignsigner")
 
 
-class SignRequestType(str, enum.Enum):
-    """Sign request type enum."""
-
-    CONTAINER = "container_signature"
-    CLEARSIGN = "clearsign_signature"
-
-
 @dataclass()
 class CosignSignerResults(SignerResults):
-    """MsgSignerResults model."""
+    """CosignSignerResults model."""
 
     status: str
     error_message: str
@@ -165,7 +157,7 @@ class CosignSigner(Signer):
         """
         set_log_level(LOG, self.log_level)
         if operation.references and len(operation.digests) != len(operation.references):
-            raise ValueError("Digests must pairs with references")
+            raise ValueError("Digests must pair with references")
 
         signer_results = CosignSignerResults(status="ok", error_message="")
 
@@ -208,8 +200,6 @@ class CosignSigner(Signer):
         for ref, process in processes.items():
             stdout, stderr = process.communicate()
             outputs[ref] = (stdout, stderr, process.returncode)
-
-        operation_result = ContainerSignResult(signing_key=operation.signing_key, signed_claims=[])
 
         for ref, (stdout, stderr, returncode) in outputs.items():
             if returncode != 0:
