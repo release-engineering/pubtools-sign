@@ -82,7 +82,9 @@ def test_msg_container_sign_raw(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
         "status": "ok"
     }
-    f_msg_signer.return_value.sign.return_value.operation_result.signed_claims = ["signed"]
+    f_msg_signer.return_value.sign.return_value.operation_result.signed_claims = [
+        ({"i": 456, "msg": {"errors": [], "signed_claim": "signed"}}, {})
+    ]
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         msg_container_sign_main,
@@ -107,10 +109,18 @@ def test_msg_container_sign_raw(f_msg_signer, f_config_msg_signer_ok):
 
 def test_msg_container_sign_raw_error(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
-        "status": "error",
-        "error_message": "simulated error",
+        "status": "ok",
+        "error_message": "",
     }
-    f_msg_signer.return_value.sign.return_value.operation_result.signed_claims = []
+    f_msg_signer.return_value.sign.return_value.operation_result.signed_claims = [
+        (
+            {
+                "i": 456,
+                "msg": {"errors": ['no signing key "test-signing-key"'], "signed_claim": None},
+            },
+            {},
+        )
+    ]
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         msg_container_sign_main,
@@ -130,14 +140,16 @@ def test_msg_container_sign_raw_error(f_msg_signer, f_config_msg_signer_ok):
     )
     print(result.stdout)
     assert result.exit_code == 1, result.output
-    assert result.output == "simulated error\n"
+    assert result.output == 'no signing key "test-signing-key"\n'
 
 
 def test_msg_clearsign_sign(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
         "status": "ok"
     }
-    f_msg_signer.return_value.sign.return_value.operation_result.outputs = []
+    f_msg_signer.return_value.sign.return_value.operation_result.outputs = [
+        ({"i": 456, "msg": {"errors": [], "signed_data": "test"}}, {})
+    ]
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         msg_clear_sign_main,
@@ -151,7 +163,8 @@ def test_msg_clearsign_sign(f_msg_signer, f_config_msg_signer_ok):
             "hello world",
         ],
     )
-    assert result.exit_code == 0, result.output
+    print(result.output)
+    assert result.exit_code == 0, result
 
 
 def test_msg_clearsign_sign_error(f_msg_signer, f_config_msg_signer_ok):
@@ -180,7 +193,9 @@ def test_msg_clearsign_sign_raw(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
         "status": "ok"
     }
-    f_msg_signer.return_value.sign.return_value.operation_result.outputs = ["signed"]
+    f_msg_signer.return_value.sign.return_value.operation_result.outputs = [
+        ({"i": 456, "msg": {"errors": [], "signed_data": "signed"}}, {})
+    ]
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         msg_clear_sign_main,
@@ -199,12 +214,38 @@ def test_msg_clearsign_sign_raw(f_msg_signer, f_config_msg_signer_ok):
     assert result.output == "signed\n"
 
 
-def test_msg_clearsign_sign_raw_error(f_msg_signer, f_config_msg_signer_ok):
+def test_msg_clearsign_sign_raw_error2(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
         "status": "error",
         "error_message": "simulated error",
     }
     f_msg_signer.return_value.sign.return_value.operation_result.outputs = []
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    result = CliRunner().invoke(
+        msg_clear_sign_main,
+        [
+            "--signing-key",
+            "test-signing-key",
+            "--task-id",
+            "1",
+            "--config",
+            f_config_msg_signer_ok,
+            "--raw",
+            "hello world",
+        ],
+    )
+    print(result.stdout)
+    assert result.exit_code == 1, result.output
+    assert result.output == "simulated error\n"
+
+
+def test_msg_clearsign_sign_raw_error(f_msg_signer, f_config_msg_signer_ok):
+    f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
+        "status": "ok",
+    }
+    f_msg_signer.return_value.sign.return_value.operation_result.outputs = [
+        ({"i": 456, "msg": {"errors": ["simulated error"], "signed_data": "signed"}}, {})
+    ]
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         msg_clear_sign_main,

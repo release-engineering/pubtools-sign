@@ -491,8 +491,8 @@ def msg_clear_sign_main(inputs, signing_key=None, task_id=None, config=None, raw
     """Entry point method for clearsign operation."""
     ret = msg_clear_sign(inputs, signing_key=signing_key, task_id=task_id, repo=repo, config=config)
     if not raw:
-        click.echo(json.dumps(ret))
         print(ret)
+        click.echo(json.dumps(ret))
         if ret["signer_result"]["status"] == "error":
             sys.exit(1)
     else:
@@ -501,7 +501,12 @@ def msg_clear_sign_main(inputs, signing_key=None, task_id=None, config=None, raw
             sys.exit(1)
         else:
             for claim in ret["operation_results"]:
-                print(claim)
+                if claim[0]["msg"]["errors"]:
+                    for error in claim[0]["msg"]["errors"]:
+                        print(error, file=sys.stderr)
+                    sys.exit(1)
+                else:
+                    print(claim[0]["msg"]["signed_data"])
 
 
 @click.command()
@@ -551,9 +556,10 @@ def msg_container_sign_main(
         if ret["signer_result"]["status"] == "error":
             sys.exit(1)
     else:
-        if ret["signer_result"]["status"] == "error":
-            print(ret["signer_result"]["error_message"], file=sys.stderr)
-            sys.exit(1)
-        else:
-            for claim in ret["operation_results"]:
-                print(claim)
+        for claim in ret["operation_results"]:
+            if claim[0]["msg"]["errors"]:
+                for error in claim[0]["msg"]["errors"]:
+                    print(error, file=sys.stderr)
+                sys.exit(1)
+            else:
+                print(claim[0]["msg"]["signed_claim"])
