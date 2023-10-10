@@ -491,7 +491,6 @@ def msg_clear_sign_main(inputs, signing_key=None, task_id=None, config=None, raw
     """Entry point method for clearsign operation."""
     ret = msg_clear_sign(inputs, signing_key=signing_key, task_id=task_id, repo=repo, config=config)
     if not raw:
-        print(ret)
         click.echo(json.dumps(ret))
         if ret["signer_result"]["status"] == "error":
             sys.exit(1)
