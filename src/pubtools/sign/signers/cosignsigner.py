@@ -142,10 +142,10 @@ class CosignSigner(Signer):
 
         :return: SigningResults
         """
+        if type(operation) not in self.SUPPORTED_OPERATIONS:
+            raise UnsupportedOperation(operation)
         if isinstance(operation, ContainerSignOperation):
             return self.container_sign(operation)
-        else:
-            raise UnsupportedOperation(operation)
 
     def container_sign(self: CosignSigner, operation: ContainerSignOperation):
         """Run container signing operation.
