@@ -177,6 +177,7 @@ class CosignSigner(Signer):
             "-t",
             self.timeout,
             "sign",
+            "-y",
             "--key",
             operation.signing_key,
             "--allow-http-registry=%s" % ("true" if self.allow_http_registry else "false"),
@@ -236,7 +237,7 @@ def cosign_container_sign(signing_key=None, config="", digest=None, reference=No
 @click.option(
     "--signing-key",
     required=True,
-    help="8 characters key fingerprint of key which should be used for signing",
+    help="signing key used by cosign.",
 )
 @click.option("--config", default=CONFIG_PATHS[0], help="path to the config file")
 @click.option(
@@ -248,7 +249,7 @@ def cosign_container_sign(signing_key=None, config="", digest=None, reference=No
 )
 @click.option(
     "--reference",
-    required=True,
+    required=False,
     multiple=True,
     type=str,
     help="References which should be signed.",
