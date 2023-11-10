@@ -18,7 +18,7 @@ def test_cosign_container_sign(f_cosign_signer, f_config_cosign_signer_ok):
     f_cosign_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
         "status": "ok"
     }
-    f_cosign_signer.return_value.sign.return_value.operation_result.signed_claims = []
+    f_cosign_signer.return_value.sign.return_value.operation_result.results = []
     f_cosign_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         cosign_container_sign_main,
@@ -42,7 +42,7 @@ def test_cosign_container_sign_error(f_cosign_signer, f_config_cosign_signer_ok)
         "status": "error",
         "error_message": "simulated error",
     }
-    f_cosign_signer.return_value.sign.return_value.operation_result.signed_claims = []
+    f_cosign_signer.return_value.sign.return_value.operation_result.results = []
     f_cosign_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         cosign_container_sign_main,
@@ -65,7 +65,7 @@ def test_cosign_container_sign_raw(f_cosign_signer, f_config_cosign_signer_ok):
     f_cosign_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
         "status": "ok"
     }
-    f_cosign_signer.return_value.sign.return_value.operation_result.signed_claims = ["signed"]
+    f_cosign_signer.return_value.sign.return_value.operation_result.results = ["signed"]
     f_cosign_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         cosign_container_sign_main,
@@ -91,7 +91,7 @@ def test_cosign_container_sign_raw_error(f_cosign_signer, f_config_cosign_signer
         "status": "error",
         "error_message": "simulated error",
     }
-    f_cosign_signer.return_value.sign.return_value.operation_result.signed_claims = []
+    f_cosign_signer.return_value.sign.return_value.operation_result.results = []
     f_cosign_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         cosign_container_sign_main,
@@ -161,6 +161,7 @@ def test_container_sign(f_config_cosign_signer_ok):
                         "-t",
                         "30s",
                         "sign",
+                        "-y",
                         "--key",
                         "test-signing-key",
                         "--allow-http-registry=false",
@@ -185,7 +186,7 @@ def test_container_sign(f_config_cosign_signer_ok):
             operation=container_sign_operation,
             signer_results=CosignSignerResults(status="ok", error_message=""),
             operation_result=ContainerSignResult(
-                signed_claims=["stdout"], signing_key="test-signing-key"
+                results=["stdout"], signing_key="test-signing-key", failed=False
             ),
         )
 
@@ -215,6 +216,7 @@ def test_container_sign_error(f_config_cosign_signer_ok):
                         "-t",
                         "30s",
                         "sign",
+                        "-y",
                         "--key",
                         "test-signing-key",
                         "--allow-http-registry=false",
@@ -239,7 +241,7 @@ def test_container_sign_error(f_config_cosign_signer_ok):
             operation=container_sign_operation,
             signer_results=CosignSignerResults(status="failed", error_message=""),
             operation_result=ContainerSignResult(
-                signed_claims=["stderr"], signing_key="test-signing-key"
+                results=["stderr"], signing_key="test-signing-key", failed=True
             ),
         )
 
@@ -269,6 +271,7 @@ def test_container_sign_digests_only(f_config_cosign_signer_ok):
                         "-t",
                         "30s",
                         "sign",
+                        "-y",
                         "--key",
                         "test-signing-key",
                         "--allow-http-registry=false",
@@ -291,7 +294,7 @@ def test_container_sign_digests_only(f_config_cosign_signer_ok):
             operation=container_sign_operation,
             signer_results=CosignSignerResults(status="ok", error_message=""),
             operation_result=ContainerSignResult(
-                signed_claims=["stdout"], signing_key="test-signing-key"
+                results=["stdout"], signing_key="test-signing-key", failed=False
             ),
         )
 

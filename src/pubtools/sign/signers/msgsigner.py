@@ -361,7 +361,7 @@ class MsgSigner(Signer):
 
         signer_results = MsgSignerResults(status="ok", error_message="")
         operation_result = ContainerSignResult(
-            signing_key=operation.signing_key, signed_claims=[""] * len(operation.digests)
+            signing_key=operation.signing_key, results=[""] * len(operation.digests), failed=False
         )
         signing_results = SigningResults(
             signer=self,
@@ -412,10 +412,11 @@ class MsgSigner(Signer):
             return signing_results
 
         operation_result = ContainerSignResult(
-            signing_key=operation.signing_key, signed_claims=[""] * len(messages)
+            signing_key=operation.signing_key, results=[""] * len(messages), failed=False
         )
         for recv_id, received in recvc.recv.items():
-            operation_result.signed_claims[messages.index(message_to_data[recv_id])] = received
+            operation_result.failed = True if received[0]["msg"]["errors"] else False
+            operation_result.results[messages.index(message_to_data[recv_id])] = received
         signing_results.operation_result = operation_result
         return signing_results
 
@@ -461,7 +462,7 @@ def msg_container_sign(
     signing_result = msg_signer.sign(operation)
     return {
         "signer_result": signing_result.signer_results.to_dict(),
-        "operation_results": signing_result.operation_result.signed_claims,
+        "operation_results": signing_result.operation_result.results,
         "signing_key": signing_result.operation_result.signing_key,
     }
 

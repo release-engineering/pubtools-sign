@@ -116,6 +116,10 @@ class CosignSigner(Signer):
 
     _signer_config_key: str = "cosign_signer"
 
+    def __post_init__(self):
+        """Post initialization of the class."""
+        set_log_level(LOG, self.log_level)
+
     def load_config(self: CosignSigner, config_data: Dict[str, Any]) -> None:
         """Load configuration of messaging signer."""
         self.cosign_bin = config_data["cosign_signer"].get("cosign_bin", self.cosign_bin)
@@ -155,13 +159,14 @@ class CosignSigner(Signer):
 
         :return: SigningResults
         """
-        set_log_level(LOG, self.log_level)
         if operation.references and len(operation.digests) != len(operation.references):
             raise ValueError("Digests must pair with references")
 
         signer_results = CosignSignerResults(status="ok", error_message="")
 
-        operation_result = ContainerSignResult(signing_key=operation.signing_key, signed_claims=[])
+        operation_result = ContainerSignResult(
+            signing_key=operation.signing_key, results=[], failed=False
+        )
 
         signing_results = SigningResults(
             signer=self,
@@ -204,10 +209,11 @@ class CosignSigner(Signer):
 
         for ref, (stdout, stderr, returncode) in outputs.items():
             if returncode != 0:
-                operation_result.signed_claims.append(stderr)
+                operation_result.results.append(stderr)
+                operation_result.failed = True
                 signing_results.signer_results.status = "failed"
             else:
-                operation_result.signed_claims.append(stdout)
+                operation_result.results.append(stdout)
         signing_results.operation_result = operation_result
         return signing_results
 
@@ -228,7 +234,7 @@ def cosign_container_sign(signing_key=None, config="", digest=None, reference=No
     signing_result = cosign_signer.sign(operation)
     return {
         "signer_result": signing_result.signer_results.to_dict(),
-        "operation_results": signing_result.operation_result.signed_claims,
+        "operation_results": signing_result.operation_result.results,
         "signing_key": signing_result.operation_result.signing_key,
     }
 

@@ -31,7 +31,7 @@ def test_msg_container_sign(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
         "status": "ok"
     }
-    f_msg_signer.return_value.sign.return_value.operation_result.signed_claims = []
+    f_msg_signer.return_value.sign.return_value.operation_result.results = []
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         msg_container_sign_main,
@@ -57,7 +57,7 @@ def test_msg_container_sign_error(f_msg_signer, f_config_msg_signer_ok):
         "status": "error",
         "error_message": "simulated error",
     }
-    f_msg_signer.return_value.sign.return_value.operation_result.signed_claims = []
+    f_msg_signer.return_value.sign.return_value.operation_result.results = []
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         msg_container_sign_main,
@@ -82,7 +82,7 @@ def test_msg_container_sign_raw(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
         "status": "ok"
     }
-    f_msg_signer.return_value.sign.return_value.operation_result.signed_claims = [
+    f_msg_signer.return_value.sign.return_value.operation_result.results = [
         ({"i": 456, "msg": {"errors": [], "signed_claim": "signed"}}, {})
     ]
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
@@ -112,7 +112,7 @@ def test_msg_container_sign_raw_error(f_msg_signer, f_config_msg_signer_ok):
         "status": "ok",
         "error_message": "",
     }
-    f_msg_signer.return_value.sign.return_value.operation_result.signed_claims = [
+    f_msg_signer.return_value.sign.return_value.operation_result.results = [
         (
             {
                 "i": 456,
@@ -581,7 +581,12 @@ def test_container_sign(patched_uuid, f_config_msg_signer_ok, f_client_certifica
         with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
             patched_send_client.return_value.run.return_value = []
             patched_recv_client.return_value.run.return_value = []
-            patched_recv_client.return_value.recv = {"1234-5678-abcd-efgh": "signed:'claim'"}
+            patched_recv_client.return_value.recv = {
+                "1234-5678-abcd-efgh": (
+                    {"msg": {"errors": [], "signed_claim": "signed:'claim'"}},
+                    {"fake": "headers"},
+                )
+            }
             patched_recv_client.return_value.errors = []
 
             signer = MsgSigner()
@@ -602,7 +607,14 @@ def test_container_sign(patched_uuid, f_config_msg_signer_ok, f_client_certifica
                 operation=container_sign_operation,
                 signer_results=MsgSignerResults(status="ok", error_message=""),
                 operation_result=ContainerSignResult(
-                    signed_claims=["signed:'claim'"], signing_key="test-signing-key"
+                    results=[
+                        (
+                            {"msg": {"errors": [], "signed_claim": "signed:'claim'"}},
+                            {"fake": "headers"},
+                        )
+                    ],
+                    signing_key="test-signing-key",
+                    failed=False,
                 ),
             )
 
@@ -638,7 +650,7 @@ def test_container_sign_recv_errors(patched_uuid, f_config_msg_signer_ok):
                     status="error", error_message="TestError : test error description\n"
                 ),
                 operation_result=ContainerSignResult(
-                    signed_claims=[""], signing_key="test-signing-key"
+                    results=[""], signing_key="test-signing-key", failed=False
                 ),
             )
 
@@ -673,7 +685,7 @@ def test_container_sign_send_errors(patched_uuid, f_config_msg_signer_ok):
                     status="error", error_message="TestError : test error description\n"
                 ),
                 operation_result=ContainerSignResult(
-                    signed_claims=[""], signing_key="test-signing-key"
+                    results=[""], signing_key="test-signing-key", failed=False
                 ),
             )
 

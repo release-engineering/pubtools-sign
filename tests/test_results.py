@@ -5,9 +5,12 @@ from pubtools.sign.signers.msgsigner import (
 
 
 def test_containeroperation_result_to_dict():
-    assert ContainerSignResult(signed_claims=["test"], signing_key="signing_key").to_dict() == {
-        "signed_claims": ["test"],
+    assert ContainerSignResult(
+        results=["test"], signing_key="signing_key", failed=False
+    ).to_dict() == {
+        "results": ["test"],
         "signing_key": "signing_key",
+        "failed": False,
     }
 
 
