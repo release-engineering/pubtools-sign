@@ -191,12 +191,14 @@ class CosignSigner(Signer):
             self.rekor_url,
             "--tlog-upload=%s" % ("true" if self.upload_tlog else "false"),
         ]
+        env_vars = os.environ.copy()
+        env_vars.update(self.env_variables)
         if operation.references:
             for ref, digest in zip(operation.references, operation.digests):
                 repo, tag = ref.rsplit(":", 1)
                 processes[f"{repo}:{digest}"] = run_command(
                     common_args + ["-a", f"tag={tag}", f"{repo}@{digest}"],
-                    env=self.env_variables,
+                    env=env_vars,
                 )
         else:
             for ref_digest in operation.digests:
@@ -213,7 +215,7 @@ class CosignSigner(Signer):
                 operation_result.failed = True
                 signing_results.signer_results.status = "failed"
             else:
-                operation_result.results.append(stdout)
+                operation_result.results.append(stderr)
         signing_results.operation_result = operation_result
         return signing_results
 
