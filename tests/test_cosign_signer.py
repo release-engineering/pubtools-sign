@@ -1,6 +1,6 @@
 from click.testing import CliRunner
 import pytest
-from unittest.mock import patch, Mock, call
+from unittest.mock import patch, Mock, call, ANY
 
 from pubtools.sign.signers.cosignsigner import (
     CosignSigner,
@@ -136,7 +136,7 @@ def test_sign(f_config_cosign_signer_ok):
             signer.sign(Mock())
 
 
-def test_container_sign(f_config_cosign_signer_ok):
+def test_container_sign(f_config_cosign_signer_ok, f_environ):
     container_sign_operation = ContainerSignOperation(
         task_id="",
         digests=["sha256:abcdefg"],
@@ -147,7 +147,7 @@ def test_container_sign(f_config_cosign_signer_ok):
 
     with patch("subprocess.Popen") as patched_popen:
         patched_popen().returncode = 0
-        patched_popen().communicate.return_value = ("stdout", "")
+        patched_popen().communicate.return_value = ("stdout", "stderr")
 
         signer = CosignSigner()
         signer.load_config(load_config(f_config_cosign_signer_ok))
@@ -173,7 +173,7 @@ def test_container_sign(f_config_cosign_signer_ok):
                         "tag=tag",
                         "some-registry/namespace/repo@sha256:abcdefg",
                     ],
-                    env={},
+                    env={"PYTEST_CURRENT_TEST": ANY},
                     stderr=-1,
                     stdout=-1,
                     text=True,
@@ -186,12 +186,12 @@ def test_container_sign(f_config_cosign_signer_ok):
             operation=container_sign_operation,
             signer_results=CosignSignerResults(status="ok", error_message=""),
             operation_result=ContainerSignResult(
-                results=["stdout"], signing_key="test-signing-key", failed=False
+                results=["stderr"], signing_key="test-signing-key", failed=False
             ),
         )
 
 
-def test_container_sign_error(f_config_cosign_signer_ok):
+def test_container_sign_error(f_config_cosign_signer_ok, f_environ):
     container_sign_operation = ContainerSignOperation(
         task_id="",
         digests=["sha256:abcdefg"],
@@ -228,7 +228,7 @@ def test_container_sign_error(f_config_cosign_signer_ok):
                         "tag=tag",
                         "some-registry/namespace/repo@sha256:abcdefg",
                     ],
-                    env={},
+                    env={"PYTEST_CURRENT_TEST": ANY},
                     stderr=-1,
                     stdout=-1,
                     text=True,
@@ -246,7 +246,7 @@ def test_container_sign_error(f_config_cosign_signer_ok):
         )
 
 
-def test_container_sign_digests_only(f_config_cosign_signer_ok):
+def test_container_sign_digests_only(f_config_cosign_signer_ok, f_environ):
     container_sign_operation = ContainerSignOperation(
         task_id="",
         digests=["some-registry/namespace/repo@sha256:abcdefg"],
@@ -257,7 +257,7 @@ def test_container_sign_digests_only(f_config_cosign_signer_ok):
 
     with patch("subprocess.Popen") as patched_popen:
         patched_popen().returncode = 0
-        patched_popen().communicate.return_value = ("stdout", "")
+        patched_popen().communicate.return_value = ("stdout", "stderr")
 
         signer = CosignSigner()
         signer.load_config(load_config(f_config_cosign_signer_ok))
@@ -294,7 +294,7 @@ def test_container_sign_digests_only(f_config_cosign_signer_ok):
             operation=container_sign_operation,
             signer_results=CosignSignerResults(status="ok", error_message=""),
             operation_result=ContainerSignResult(
-                results=["stdout"], signing_key="test-signing-key", failed=False
+                results=["stderr"], signing_key="test-signing-key", failed=False
             ),
         )
 
