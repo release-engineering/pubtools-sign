@@ -8,6 +8,7 @@ from pubtools.sign.signers.cosignsigner import (
     ContainerSignOperation,
     ContainerSignResult,
     cosign_container_sign_main,
+    cosign_list_existing_signatures,
 )
 from pubtools.sign.conf.conf import load_config
 from pubtools.sign.exceptions import UnsupportedOperation
@@ -375,6 +376,70 @@ def test_container_sign_mismatch_refs(f_config_cosign_signer_ok):
 
         print(patched_popen.mock_calls)
         patched_popen.assert_not_called()
+
+
+def test_container_sign_list_existing_signatures(f_config_cosign_signer_ok_basic_auth):
+    with patch("subprocess.Popen") as patched_popen:
+        patched_popen.return_value.returncode = 0
+        patched_popen.return_value.communicate.return_value = ("stdout", "stderr")
+
+        ret = cosign_list_existing_signatures(
+            f_config_cosign_signer_ok_basic_auth, "example-registry.io/test-reference"
+        )
+        patched_popen.assert_has_calls(
+            [
+                call(
+                    [
+                        "/usr/bin/cosign",
+                        "-t",
+                        "30s",
+                        "triangulate",
+                        "--allow-http-registry=false",
+                        "--allow-insecure-registry=false",
+                        "--registry-user",
+                        "username",
+                        "--registry-password",
+                        "password",
+                        "example-registry.io/test-reference",
+                    ],
+                    env=ANY,
+                    stderr=-1,
+                    stdout=-1,
+                    text=True,
+                )
+            ]
+        )
+        assert ret == (True, ["stdout"])
+
+
+def test_container_sign_list_existing_signatures_error(f_config_cosign_signer_ok):
+    with patch("subprocess.Popen") as patched_popen:
+        patched_popen.return_value.returncode = 1
+        patched_popen.return_value.communicate.return_value = ("stdout", "stderr")
+
+        ret = cosign_list_existing_signatures(
+            f_config_cosign_signer_ok, "example-registry.io/test-reference"
+        )
+        patched_popen.assert_has_calls(
+            [
+                call(
+                    [
+                        "/usr/bin/cosign",
+                        "-t",
+                        "30s",
+                        "triangulate",
+                        "--allow-http-registry=false",
+                        "--allow-insecure-registry=false",
+                        "example-registry.io/test-reference",
+                    ],
+                    env=ANY,
+                    stderr=-1,
+                    stdout=-1,
+                    text=True,
+                )
+            ]
+        )
+        assert ret == (False, "stderr")
 
 
 def test_cosignsig_doc_arguments():

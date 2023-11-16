@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import field, dataclass
 import json
 import logging
-from typing import Dict, List, ClassVar, Any
+from typing import Dict, List, ClassVar, Any, Tuple
 import os
 import sys
 
@@ -240,9 +240,50 @@ class CosignSigner(Signer):
         signing_results.operation_result = operation_result
         return signing_results
 
+    def existing_signatures(self, reference: str) -> Tuple[bool, str]:
+        """Return list of existing signatures for given reference.
+
+        Args:
+            reference (str): reference to get list of signatures for
+        Returns:
+            Tuple[bool, str]: tuple of success flag and error message or result string
+        """
+        common_args = [
+            self.cosign_bin,
+            "-t",
+            self.timeout,
+            "triangulate",
+            "--allow-http-registry=%s" % ("true" if self.allow_http_registry else "false"),
+            "--allow-insecure-registry=%s" % ("true" if self.allow_insecure_registry else "false"),
+        ]
+        if self.registry_user:
+            common_args += ["--registry-user", self.registry_user]
+        if self.registry_password:
+            common_args += ["--registry-password", self.registry_password]
+        env_vars = os.environ.copy()
+        env_vars.update(self.env_variables)
+        process = run_command(
+            common_args + [reference],
+            env=env_vars,
+        )
+        stdout, stderr = process.communicate()
+        if process.returncode != 0:
+            return False, stderr
+        else:
+            return True, stdout.split("\n")
+
 
 def cosign_container_sign(signing_key=None, config="", digest=None, reference=None):
-    """Run containersign operation with cli arguments."""
+    """Run containersign operation with cli arguments.
+
+    Args:
+        signing_key (str): path to the signing key
+        config (str): path to the config file
+        digest (str): digest of the image to sign
+        reference (str): reference of the image to sign
+    Returns:
+        dict: signing result
+    """
     cosign_signer = CosignSigner()
     config = _get_config_file(config)
     cosign_signer.load_config(load_config(os.path.expanduser(config)))
@@ -260,6 +301,21 @@ def cosign_container_sign(signing_key=None, config="", digest=None, reference=No
         "operation_results": signing_result.operation_result.results,
         "signing_key": signing_result.operation_result.signing_key,
     }
+
+
+def cosign_list_existing_signatures(config: str, reference: str) -> Tuple[bool, str]:
+    """List existing signatures for given reference.
+
+    Args:
+        config (str): path to the config file
+        reference (str): reference to get list of signatures for
+    Returns:
+        Tuple[bool, str]: tuple of success flag and error message or result string
+    """
+    cosign_signer = CosignSigner()
+    config = _get_config_file(config)
+    cosign_signer.load_config(load_config(os.path.expanduser(config)))
+    return cosign_signer.existing_signatures(reference)
 
 
 @click.command()
