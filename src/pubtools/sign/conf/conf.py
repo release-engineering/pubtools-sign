@@ -31,6 +31,8 @@ class CosignSignerSchema(ma.Schema):
     upload_tlog = ma.fields.Bool(required=False)
     log_level = ma.fields.String(default="INFO")
     env_variables = ma.fields.Dict(required=False)
+    registry_user = ma.fields.String(required=False)
+    registry_password = ma.fields.String(required=False)
 
 
 class ConfigSchema(ma.Schema):

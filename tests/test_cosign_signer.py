@@ -191,6 +191,65 @@ def test_container_sign(f_config_cosign_signer_ok, f_environ):
         )
 
 
+def test_container_sign_basic_auth(f_config_cosign_signer_ok_basic_auth, f_environ):
+    container_sign_operation = ContainerSignOperation(
+        task_id="",
+        digests=["sha256:abcdefg"],
+        references=["some-registry/namespace/repo:tag"],
+        signing_key="test-signing-key",
+        repo="",
+    )
+
+    with patch("subprocess.Popen") as patched_popen:
+        patched_popen().returncode = 0
+        patched_popen().communicate.return_value = ("stdout", "stderr")
+
+        signer = CosignSigner()
+        signer.load_config(load_config(f_config_cosign_signer_ok_basic_auth))
+        res = signer.container_sign(container_sign_operation)
+
+        patched_popen.assert_has_calls(
+            [
+                call(
+                    [
+                        "/usr/bin/cosign",
+                        "-t",
+                        "30s",
+                        "sign",
+                        "-y",
+                        "--key",
+                        "test-signing-key",
+                        "--allow-http-registry=false",
+                        "--allow-insecure-registry=false",
+                        "--rekor-url",
+                        "https://rekor.sigstore.dev",
+                        "--tlog-upload=true",
+                        "--registry-user",
+                        "username",
+                        "--registry-password",
+                        "password",
+                        "-a",
+                        "tag=tag",
+                        "some-registry/namespace/repo@sha256:abcdefg",
+                    ],
+                    env={"PYTEST_CURRENT_TEST": ANY},
+                    stderr=-1,
+                    stdout=-1,
+                    text=True,
+                )
+            ]
+        )
+
+        assert res == SigningResults(
+            signer=signer,
+            operation=container_sign_operation,
+            signer_results=CosignSignerResults(status="ok", error_message=""),
+            operation_result=ContainerSignResult(
+                results=["stderr"], signing_key="test-signing-key", failed=False
+            ),
+        )
+
+
 def test_container_sign_error(f_config_cosign_signer_ok, f_environ):
     container_sign_operation = ContainerSignOperation(
         task_id="",
@@ -329,6 +388,8 @@ def test_cosignsig_doc_arguments():
             "allow_http_registry": {"description": "Allow http registry"},
             "allow_insecure_registry": {"description": "Allow insecure registry"},
             "env_variables": {"description": "environment variables used for signing"},
+            "registry_user": {"description": "Registry basic user"},
+            "registry_password": {"description": "Registry basic password"},
         },
         "examples": {
             "cosign_signer": {
@@ -341,6 +402,8 @@ def test_cosignsig_doc_arguments():
                 "rekor_url": "https://rekor.sigstore.dev",
                 "timeout": "60s",
                 "upload_tlog": "False",
+                "registry_password": "password",
+                "registry_user": "username",
             }
         },
     }

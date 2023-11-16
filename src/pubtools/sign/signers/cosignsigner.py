@@ -106,8 +106,21 @@ class CosignSigner(Signer):
         metadata={"description": "upload signing record to rekor", "sample": "False"},
         default=True,
     )
+
     log_level: str = field(
         init=False, metadata={"description": "Log level", "sample": "debug"}, default="info"
+    )
+
+    registry_user: str = field(
+        init=False,
+        metadata={"description": "Registry basic user", "sample": "username"},
+        default="",
+    )
+
+    registry_password: str = field(
+        init=False,
+        metadata={"description": "Registry basic password", "sample": "password"},
+        default="",
     )
 
     SUPPORTED_OPERATIONS: ClassVar[List[SignOperation]] = [
@@ -133,6 +146,10 @@ class CosignSigner(Signer):
         self.rekor_url = config_data["cosign_signer"].get("rekor_url", self.rekor_url)
         self.upload_tlog = config_data["cosign_signer"].get("upload_tlog", self.upload_tlog)
         self.env_variables = config_data["cosign_signer"].get("env_variables", self.env_variables)
+        self.registry_user = config_data["cosign_signer"].get("registry_user", self.registry_user)
+        self.registry_password = config_data["cosign_signer"].get(
+            "registry_password", self.registry_password
+        )
 
     def operations(self: CosignSigner) -> List[SignOperation]:
         """Return list of supported operations."""
@@ -191,6 +208,10 @@ class CosignSigner(Signer):
             self.rekor_url,
             "--tlog-upload=%s" % ("true" if self.upload_tlog else "false"),
         ]
+        if self.registry_user:
+            common_args += ["--registry-user", self.registry_user]
+        if self.registry_password:
+            common_args += ["--registry-password", self.registry_password]
         env_vars = os.environ.copy()
         env_vars.update(self.env_variables)
         if operation.references:

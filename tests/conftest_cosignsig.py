@@ -25,3 +25,22 @@ cosign_signer:
         )
         tmpf.flush()
         yield tmpf.name
+
+
+@fixture
+def f_config_cosign_signer_ok_basic_auth(f_client_certificate):
+    with tempfile.NamedTemporaryFile() as tmpf:
+        tmpf.write(
+            """
+cosign_signer:
+  timeout: 30s
+  rekor_url: https://rekor.sigstore.dev
+  log_level: debug
+  registry_user: username
+  registry_password: password
+        """.encode(
+                "utf-8"
+            )
+        )
+        tmpf.flush()
+        yield tmpf.name

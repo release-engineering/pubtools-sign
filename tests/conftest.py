@@ -10,7 +10,11 @@ import os
 from unittest.mock import patch
 
 from .conftest_msgsig import f_msg_signer, f_config_msg_signer_ok  # noqa: F401
-from .conftest_cosignsig import f_cosign_signer, f_config_cosign_signer_ok  # noqa: F401
+from .conftest_cosignsig import (  # noqa: F401
+    f_cosign_signer,
+    f_config_cosign_signer_ok,
+    f_config_cosign_signer_ok_basic_auth,  # noqa: F401
+)  # noqa: F401
 
 
 from proton import Endpoint
