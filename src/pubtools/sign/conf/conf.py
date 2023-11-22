@@ -33,6 +33,9 @@ class CosignSignerSchema(ma.Schema):
     log_level = ma.fields.String(default="INFO")
     env_variables = ma.fields.Dict(required=False)
     key_aliases = ma.fields.Dict(required=False, keys=ma.fields.String(), values=ma.fields.String())
+    registry_user = ma.fields.String(required=False)
+    registry_password = ma.fields.String(required=False)
+    retries = ma.fields.Integer(required=False)
 
 
 class ConfigSchema(ma.Schema):

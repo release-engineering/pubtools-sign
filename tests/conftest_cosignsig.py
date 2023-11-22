@@ -18,6 +18,8 @@ def f_config_cosign_signer_ok(f_client_certificate):
 cosign_signer:
   timeout: 30s
   rekor_url: https://rekor.sigstore.dev
+  registry_user: some-user
+  registry_password: some-password
   log_level: debug
         """.encode(
                 "utf-8"

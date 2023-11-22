@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import field, dataclass
 import json
 import logging
-from typing import Dict, List, ClassVar, Any
+from typing import Dict, List, ClassVar, Any, Tuple
 import os
 import sys
 
@@ -18,6 +18,7 @@ from ..results import SignerResults
 from ..exceptions import UnsupportedOperation
 from ..conf.conf import load_config, CONFIG_PATHS
 from ..utils import set_log_level, run_command, _get_config_file
+from ..clients.registry import ContainerRegistryClient, AuthTokenWrapper
 
 
 LOG = logging.getLogger("pubtools.sign.signers.cosignsigner")
@@ -106,6 +107,7 @@ class CosignSigner(Signer):
         metadata={"description": "upload signing record to rekor", "sample": "False"},
         default=True,
     )
+
     log_level: str = field(
         init=False, metadata={"description": "Log level", "sample": "debug"}, default="info"
     )
@@ -118,6 +120,28 @@ class CosignSigner(Signer):
         default_factory=dict,
     )
 
+    registry_user: str = field(
+        init=False,
+        metadata={"description": "Registry basic user", "sample": "username"},
+        default="",
+    )
+
+    registry_password: str = field(
+        init=False,
+        metadata={"description": "Registry basic password", "sample": "password"},
+        default="",
+    )
+    registry_auth_file: str = field(
+        init=False,
+        metadata={"description": "Registry basic auth file", "sample": "auth.json"},
+        default="",
+    )
+    retries: int = field(
+        init=False,
+        metadata={"description": "Number of retries for http requests", "sample": 5},
+        default=5,
+    )
+
     SUPPORTED_OPERATIONS: ClassVar[List[SignOperation]] = [
         ContainerSignOperation,
     ]
@@ -127,6 +151,12 @@ class CosignSigner(Signer):
     def __post_init__(self):
         """Post initialization of the class."""
         set_log_level(LOG, self.log_level)
+        self.container_registry_client = ContainerRegistryClient(
+            username=self.registry_user,
+            password=self.registry_password,
+            auth_file=self.registry_auth_file,
+        )
+        self.auth_token = AuthTokenWrapper(token="")
 
     def load_config(self: CosignSigner, config_data: Dict[str, Any]) -> None:
         """Load configuration of messaging signer."""
@@ -142,6 +172,11 @@ class CosignSigner(Signer):
         self.upload_tlog = config_data["cosign_signer"].get("upload_tlog", self.upload_tlog)
         self.env_variables = config_data["cosign_signer"].get("env_variables", self.env_variables)
         self.key_aliases = config_data["cosign_signer"].get("key_aliases", {})
+        self.registry_user = config_data["cosign_signer"].get("registry_user", self.registry_user)
+        self.registry_password = config_data["cosign_signer"].get(
+            "registry_password", self.registry_password
+        )
+        self.retries = config_data["cosign_signer"].get("retries", self.retries)
 
     def operations(self: CosignSigner) -> List[SignOperation]:
         """Return list of supported operations."""
@@ -204,6 +239,10 @@ class CosignSigner(Signer):
             self.rekor_url,
             "--tlog-upload=%s" % ("true" if self.upload_tlog else "false"),
         ]
+        if self.registry_user:
+            common_args += ["--registry-username", self.registry_user]
+        if self.registry_password:
+            common_args += ["--registry-password", self.registry_password]
         env_vars = os.environ.copy()
         env_vars.update(self.env_variables)
         if operation.references:
@@ -215,9 +254,7 @@ class CosignSigner(Signer):
                 )
         else:
             for ref_digest in operation.digests:
-                processes[f"{ref_digest}"] = run_command(
-                    common_args + [ref_digest], env=self.env_variables
-                )
+                processes[f"{ref_digest}"] = run_command(common_args + [ref_digest], env=env_vars)
         for ref, process in processes.items():
             stdout, stderr = process.communicate()
             outputs[ref] = (stdout, stderr, process.returncode)
@@ -232,9 +269,54 @@ class CosignSigner(Signer):
         signing_results.operation_result = operation_result
         return signing_results
 
+    def existing_signatures(self, reference: str) -> Tuple[bool, str]:
+        """Return list of existing signatures for given reference.
+
+        Args:
+            reference (str): reference to get list of signatures for
+        Returns:
+            Tuple[bool, str]: tuple of success flag and error message or result string
+        """
+        common_args = [
+            self.cosign_bin,
+            "-t",
+            self.timeout,
+            "triangulate",
+            "--allow-http-registry=%s" % ("true" if self.allow_http_registry else "false"),
+            "--allow-insecure-registry=%s" % ("true" if self.allow_insecure_registry else "false"),
+        ]
+        if self.registry_user:
+            common_args += ["--registry-username", self.registry_user]
+        if self.registry_password:
+            common_args += ["--registry-password", self.registry_password]
+        env_vars = os.environ.copy()
+        env_vars.update(self.env_variables)
+        process = run_command(
+            common_args + [reference],
+            env=env_vars,
+        )
+        stdout, stderr = process.communicate()
+        if process.returncode != 0:
+            return False, stderr
+        else:
+            if self.container_registry_client.check_container_image_exists(
+                stdout.strip("\n"), auth_token=self.auth_token
+            ):
+                return True, stdout.split("\n")
+            return True, ""
+
 
 def cosign_container_sign(signing_key=None, config="", digest=None, reference=None):
-    """Run containersign operation with cli arguments."""
+    """Run containersign operation with cli arguments.
+
+    Args:
+        signing_key (str): path to the signing key
+        config (str): path to the config file
+        digest (str): digest of the image to sign
+        reference (str): reference of the image to sign
+    Returns:
+        dict: signing result
+    """
     cosign_signer = CosignSigner()
     config = _get_config_file(config)
     cosign_signer.load_config(load_config(os.path.expanduser(config)))
@@ -252,6 +334,21 @@ def cosign_container_sign(signing_key=None, config="", digest=None, reference=No
         "operation_results": signing_result.operation_result.results,
         "signing_key": signing_result.operation_result.signing_key,
     }
+
+
+def cosign_list_existing_signatures(config: str, reference: str) -> Tuple[bool, str]:
+    """List existing signatures for given reference.
+
+    Args:
+        config (str): path to the config file
+        reference (str): reference to get list of signatures for
+    Returns:
+        Tuple[bool, str]: tuple of success flag and error message or result string
+    """
+    cosign_signer = CosignSigner()
+    config = _get_config_file(config)
+    cosign_signer.load_config(load_config(os.path.expanduser(config)))
+    return cosign_signer.existing_signatures(reference)
 
 
 @click.command()
