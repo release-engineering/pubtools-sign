@@ -2,7 +2,7 @@ import dataclasses
 import base64
 import json
 import os
-import sys
+import logging
 
 from urllib.parse import urlparse, urlunparse, urlencode
 from urllib.request import parse_http_list, parse_keqv_list
@@ -10,6 +10,10 @@ from typing import Optional, Tuple
 
 import requests
 from requests.adapters import HTTPAdapter, Retry
+
+from ..utils import set_log_level
+
+LOG = logging.getLogger("pubtools.sign.signers.msgsigner")
 
 AUTH_FILES = [
     "${XDG_CONFIG_HOME}/containers/auth.json",
@@ -26,13 +30,7 @@ class AuthTokenWrapper:
 
 
 class ContainerRegistryClient:
-    """Client for interacting with container registries.
-
-    Args:
-        username (Optional[str]): Username for authentication.
-        password (Optional[str]): Password for authentication.
-        auth_file (Optional[str]): Path to the auth file.
-    """
+    """Client for interacting with container registries."""
 
     def __init__(
         self,
@@ -40,6 +38,7 @@ class ContainerRegistryClient:
         password: Optional[str] = None,
         auth_file: Optional[str] = None,
         retries: int = 5,
+        log_level: str = "INFO",
     ):
         """Initialize.
 
@@ -47,12 +46,14 @@ class ContainerRegistryClient:
             username (Optional[str]): Username for authentication.
             password (Optional[str]): Password for authentication.
             auth_file (Optional[str]): Path to the auth file.
+            retries (int): Number of retries for HTTP requests.
         """
         self.username = username
         self.password = password
         self.auth_file = auth_file
         self._session = None
         self.retries = retries
+        set_log_level(LOG, log_level)
 
     @property
     def session(self):
@@ -102,8 +103,6 @@ class ContainerRegistryClient:
 
     def authenticate_to_registry(self, image_reference: str, auth_header: str) -> str:
         """Ask for auth token based on given auth header.
-
-        Ask for authentication token based on the given auth header.
 
         Args:
             image_reference (str): Image reference to resolve authentication for.
@@ -160,9 +159,10 @@ class ContainerRegistryClient:
             elif response.status_code == 404:
                 return False
             else:
+                LOG.error(f"Unexpected Error: {response.status_code} - {response.text}")
                 return False
         elif response.status_code == 404:
             return False
         else:
-            print(f"Error: {response.status_code} - {response.text}", file=sys.stderr)
+            LOG.error(f"Unexpected Error: {response.status_code} - {response.text}")
             return False

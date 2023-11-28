@@ -155,6 +155,7 @@ class CosignSigner(Signer):
             username=self.registry_user,
             password=self.registry_password,
             auth_file=self.registry_auth_file,
+            log_level=self.log_level,
         )
         self.auth_token = AuthTokenWrapper(token="")
 
