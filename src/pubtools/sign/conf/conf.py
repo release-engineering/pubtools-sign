@@ -18,6 +18,7 @@ class MsgSignerSchema(ma.Schema):
     retries = ma.fields.Integer(required=True)
     message_id_key = ma.fields.String(required=True)
     log_level = ma.fields.String(default="INFO")
+    key_aliases = ma.fields.Dict(required=False, keys=ma.fields.String(), values=ma.fields.String())
 
 
 class CosignSignerSchema(ma.Schema):
@@ -31,6 +32,7 @@ class CosignSignerSchema(ma.Schema):
     upload_tlog = ma.fields.Bool(required=False)
     log_level = ma.fields.String(default="INFO")
     env_variables = ma.fields.Dict(required=False)
+    key_aliases = ma.fields.Dict(required=False, keys=ma.fields.String(), values=ma.fields.String())
 
 
 class ConfigSchema(ma.Schema):

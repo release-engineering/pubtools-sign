@@ -133,6 +133,15 @@ class MsgSigner(Signer):
             "sample": "123",
         },
     )
+    key_aliases: Dict[str, str] = field(
+        init=False,
+        metadata={
+            "description": "Aliases for signing keys",
+            "sample": "{'production':'abcde1245'}",
+        },
+        default_factory=dict,
+    )
+
     log_level: str = field(init=False, metadata={"description": "Log level", "sample": "debug"})
 
     SUPPORTED_OPERATIONS: ClassVar[List[SignOperation]] = [
@@ -210,6 +219,7 @@ class MsgSigner(Signer):
         self.log_level = config_data["msg_signer"]["log_level"]
         self.timeout = config_data["msg_signer"]["timeout"]
         self.creator = self._get_cert_subject_cn()
+        self.key_aliases = config_data["msg_signer"].get("key_aliases", {})
 
     def _get_cert_subject_cn(self):
         x509 = OpenSSL.crypto.load_certificate(
@@ -257,9 +267,14 @@ class MsgSigner(Signer):
             message_to_data[message.body["request_id"]] = message
             messages.append(message)
 
+        signing_key = operation.signing_key
+        if signing_key in self.key_aliases:
+            signing_key = self.key_aliases[signing_key]
+            LOG.info(f"Using signing key alias {signing_key} for {operation.signing_key}")
+
         signer_results = MsgSignerResults(status="ok", error_message="")
         operation_result = ClearSignResult(
-            signing_key=operation.signing_key, outputs=[""] * len(operation.inputs)
+            signing_key=signing_key, outputs=[""] * len(operation.inputs)
         )
         signing_results = SigningResults(
             signer=self,
@@ -360,8 +375,12 @@ class MsgSigner(Signer):
             messages.append(message)
 
         signer_results = MsgSignerResults(status="ok", error_message="")
+        signing_key = operation.signing_key
+        if signing_key in self.key_aliases:
+            signing_key = self.key_aliases[signing_key]
+            LOG.info(f"Using signing key alias {signing_key} for {operation.signing_key}")
         operation_result = ContainerSignResult(
-            signing_key=operation.signing_key, results=[""] * len(operation.digests), failed=False
+            signing_key=signing_key, results=[""] * len(operation.digests), failed=False
         )
         signing_results = SigningResults(
             signer=self,

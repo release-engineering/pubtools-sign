@@ -109,6 +109,14 @@ class CosignSigner(Signer):
     log_level: str = field(
         init=False, metadata={"description": "Log level", "sample": "debug"}, default="info"
     )
+    key_aliases: Dict[str, str] = field(
+        init=False,
+        metadata={
+            "description": "Aliases for signing keys",
+            "sample": "{'production':'abcde1245'}",
+        },
+        default_factory=dict,
+    )
 
     SUPPORTED_OPERATIONS: ClassVar[List[SignOperation]] = [
         ContainerSignOperation,
@@ -133,6 +141,7 @@ class CosignSigner(Signer):
         self.rekor_url = config_data["cosign_signer"].get("rekor_url", self.rekor_url)
         self.upload_tlog = config_data["cosign_signer"].get("upload_tlog", self.upload_tlog)
         self.env_variables = config_data["cosign_signer"].get("env_variables", self.env_variables)
+        self.key_aliases = config_data["cosign_signer"].get("key_aliases", {})
 
     def operations(self: CosignSigner) -> List[SignOperation]:
         """Return list of supported operations."""
@@ -167,6 +176,10 @@ class CosignSigner(Signer):
         operation_result = ContainerSignResult(
             signing_key=operation.signing_key, results=[], failed=False
         )
+        signing_key = operation.signing_key
+        if signing_key in self.key_aliases:
+            signing_key = self.key_aliases[signing_key]
+            LOG.info(f"Using signing key alias {signing_key} for {operation.signing_key}")
 
         signing_results = SigningResults(
             signer=self,
@@ -184,7 +197,7 @@ class CosignSigner(Signer):
             "sign",
             "-y",
             "--key",
-            operation.signing_key,
+            signing_key,
             "--allow-http-registry=%s" % ("true" if self.allow_http_registry else "false"),
             "--allow-insecure-registry=%s" % ("true" if self.allow_insecure_registry else "false"),
             "--rekor-url",
