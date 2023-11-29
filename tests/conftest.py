@@ -18,6 +18,7 @@ from .conftest_cosignsig import (  # noqa: F401
     f_cosign_signer,  # noqa: F401
     f_config_cosign_signer_ok,  # noqa: F401
     f_config_cosign_signer_aliases,  # noqa: F401
+    f_config_cosign_signer_no_auth,
 )  # noqa: F401
 
 

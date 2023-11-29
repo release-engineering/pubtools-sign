@@ -573,6 +573,26 @@ def test_container_existing_signatures_no_auth_needed(
         assert res == (True, ["example-registry.io/namespace/repo:sha256-abcdefg.sig"])
 
 
+def test_container_existing_signatures_no_auth_provided(
+    f_config_cosign_signer_no_auth, f_environ, f_expected_cosign_triangulate_args
+):
+    with patch("subprocess.Popen") as patched_popen:
+        patched_popen().returncode = 0
+        patched_popen().communicate.return_value = (
+            "example-registry.io/namespace/repo:sha256-abcdefg.sig",
+            "stderr",
+        )
+        signer = CosignSigner()
+        signer.load_config(load_config(f_config_cosign_signer_no_auth))
+
+        with requests_mock.Mocker() as m:
+            mock_registry_responses(
+                m, "example-registry.io", "namespace/repo", registry_response=401
+            )
+            with pytest.raises(ValueError):
+                signer.existing_signatures("example-registry.io/namespace/repo:latest")
+
+
 def test_container_existing_signatures_repo_no_found(
     f_config_cosign_signer_ok, f_environ, f_expected_cosign_triangulate_args
 ):

@@ -69,15 +69,18 @@ class ContainerRegistryClient:
     def resolve_authentication(self, image_reference: str) -> Tuple[str, str]:
         """Resolve authentication for the given image reference.
 
-        Configuration files for container authentication are searched in the
-        first place. If there's no match found in those, the username and
-        password provided to the client are used.
+        When username and password are provided in registry client, they are used.
+        Otherwise container configuration files are search for specific authentication
+        entry based on host of image reference.
 
         Args:
             image_reference (str): Image reference to resolve authentication for.
         Returns:
             Tuple[str, str]: Username and password for authentication.
         """
+        if self.username and self.password:
+            return (self.username, self.password)
+
         parsed = urlparse(image_reference)
         if not parsed.scheme:
             parsed = urlparse(f"docker://{image_reference}")
@@ -98,7 +101,7 @@ class ContainerRegistryClient:
                 )
                 break
         else:
-            auth = (self.username, self.password)
+            raise ValueError("No authentication found")
         return auth
 
     def authenticate_to_registry(self, image_reference: str, auth_header: str) -> str:

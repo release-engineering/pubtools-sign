@@ -178,6 +178,12 @@ class CosignSigner(Signer):
             "registry_password", self.registry_password
         )
         self.retries = config_data["cosign_signer"].get("retries", self.retries)
+        self.container_registry_client = ContainerRegistryClient(
+            username=self.registry_user,
+            password=self.registry_password,
+            auth_file=self.registry_auth_file,
+            log_level=self.log_level,
+        )
 
     def operations(self: CosignSigner) -> List[SignOperation]:
         """Return list of supported operations."""
