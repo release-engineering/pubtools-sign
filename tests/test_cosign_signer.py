@@ -661,7 +661,7 @@ def test_container_existing_signatures_repo_registry_sig_error(
                 )
             ]
         )
-        assert res == (True, "")
+        assert res == (False, "Unexpected Error: 500 - {}")
 
 
 def test_container_existing_signatures_repo_registry_registry_error(
@@ -696,7 +696,7 @@ def test_container_existing_signatures_repo_registry_registry_error(
                 )
             ]
         )
-        assert res == (True, "")
+        assert res == (False, "Unexpected Error: 500 - ")
 
 
 def test_container_existing_signatures_main(

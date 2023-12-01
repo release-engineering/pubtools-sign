@@ -306,10 +306,13 @@ class CosignSigner(Signer):
         if process.returncode != 0:
             return False, stderr
         else:
-            if self.container_registry_client.check_container_image_exists(
+            ret, err_msg = self.container_registry_client.check_container_image_exists(
                 stdout.strip("\n"), auth_token=self.auth_token
-            ):
+            )
+            if ret:
                 return True, stdout.split("\n")
+            elif err_msg:
+                return False, err_msg
             return True, ""
 
 

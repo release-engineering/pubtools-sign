@@ -134,14 +134,14 @@ class ContainerRegistryClient:
 
     def check_container_image_exists(
         self, image_reference: str, auth_token: Optional[AuthTokenWrapper] = None
-    ) -> bool:
+    ) -> Tuple[bool, str]:
         """Check if the given container image exists.
 
         Args:
             image_reference (str): Image reference to check.
             auth_token (Optional[AuthTokenWrapper]): Authentication token.
         Returns:
-            bool: True if the image exists, False otherwise.
+            bool: [True, ""] if the image exists, Tuple[False, <error_message>] otherwise.
         """
         repo_ref, tag = image_reference.rsplit(":", 1)
         registry, repo = repo_ref.split("/", 1)
@@ -150,7 +150,7 @@ class ContainerRegistryClient:
         response = self.session.get(manifest_url, headers=headers)
 
         if response.status_code == 200:
-            return True
+            return True, ""
         elif response.status_code == 401:
             auth_header = response.headers.get("www-authenticate")
             auth_token.token = self.authenticate_to_registry(image_reference, auth_header)
@@ -158,14 +158,14 @@ class ContainerRegistryClient:
             headers = {"Authorization": f"Bearer {auth_token.token}"}
             response = self.session.get(manifest_url, headers=headers)
             if response.status_code == 200:
-                return True
+                return True, ""
             elif response.status_code == 404:
-                return False
+                return False, ""
             else:
                 LOG.error(f"Unexpected Error: {response.status_code} - {response.text}")
-                return False
+                return False, f"Unexpected Error: {response.status_code} - {response.text}"
         elif response.status_code == 404:
-            return False
+            return False, ""
         else:
             LOG.error(f"Unexpected Error: {response.status_code} - {response.text}")
-            return False
+            return False, f"Unexpected Error: {response.status_code} - {response.text}"
