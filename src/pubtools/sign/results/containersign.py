@@ -12,9 +12,10 @@ class ContainerSignResult(OperationResult):
     """ContainerOperationResult model."""
 
     ResultType: ClassVar[OperationResult]
-    signed_claims: List[str]
+    results: List[str]
     signing_key: str
+    failed: bool
 
     def to_dict(self: Self):
         """Return dict representation of ContainerOperationResult."""
-        return {"signed_claims": self.signed_claims, "signing_key": self.signing_key}
+        return {"results": self.results, "signing_key": self.signing_key, "failed": self.failed}

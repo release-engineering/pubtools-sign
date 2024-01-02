@@ -7,7 +7,7 @@ def test_bundle_msg_container_sign(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
         "status": "ok"
     }
-    f_msg_signer.return_value.sign.return_value.operation_result.signed_claims = []
+    f_msg_signer.return_value.sign.return_value.operation_result.results = []
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         cli,

@@ -4,4 +4,4 @@ proton
 bandit
 sphinx
 ansible
-
+requests_mock

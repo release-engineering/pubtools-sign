@@ -24,7 +24,7 @@ from ..clients.msg_send_client import SendClient
 from ..clients.msg_recv_client import RecvClient
 from ..models.msg import MsgMessage
 from ..conf.conf import load_config, CONFIG_PATHS
-from ..utils import set_log_level, isodate_now
+from ..utils import set_log_level, isodate_now, _get_config_file
 
 
 LOG = logging.getLogger("pubtools.sign.signers.msgsigner")
@@ -133,12 +133,23 @@ class MsgSigner(Signer):
             "sample": "123",
         },
     )
+    key_aliases: Dict[str, str] = field(
+        init=False,
+        metadata={
+            "description": "Aliases for signing keys",
+            "sample": "{'production':'abcde1245'}",
+        },
+        default_factory=dict,
+    )
+
     log_level: str = field(init=False, metadata={"description": "Log level", "sample": "debug"})
 
     SUPPORTED_OPERATIONS: ClassVar[List[SignOperation]] = [
         ContainerSignOperation,
         ClearSignOperation,
     ]
+
+    _signer_config_key: str = "msg_signer"
 
     def _construct_signing_message(
         self: MsgSigner,
@@ -208,6 +219,7 @@ class MsgSigner(Signer):
         self.log_level = config_data["msg_signer"]["log_level"]
         self.timeout = config_data["msg_signer"]["timeout"]
         self.creator = self._get_cert_subject_cn()
+        self.key_aliases = config_data["msg_signer"].get("key_aliases", {})
 
     def _get_cert_subject_cn(self):
         x509 = OpenSSL.crypto.load_certificate(
@@ -255,9 +267,14 @@ class MsgSigner(Signer):
             message_to_data[message.body["request_id"]] = message
             messages.append(message)
 
+        signing_key = operation.signing_key
+        if signing_key in self.key_aliases:
+            signing_key = self.key_aliases[signing_key]
+            LOG.info(f"Using signing key alias {signing_key} for {operation.signing_key}")
+
         signer_results = MsgSignerResults(status="ok", error_message="")
         operation_result = ClearSignResult(
-            signing_key=operation.signing_key, outputs=[""] * len(operation.inputs)
+            signing_key=signing_key, outputs=[""] * len(operation.inputs)
         )
         signing_results = SigningResults(
             signer=self,
@@ -358,8 +375,12 @@ class MsgSigner(Signer):
             messages.append(message)
 
         signer_results = MsgSignerResults(status="ok", error_message="")
+        signing_key = operation.signing_key
+        if signing_key in self.key_aliases:
+            signing_key = self.key_aliases[signing_key]
+            LOG.info(f"Using signing key alias {signing_key} for {operation.signing_key}")
         operation_result = ContainerSignResult(
-            signing_key=operation.signing_key, signed_claims=[""] * len(operation.digests)
+            signing_key=signing_key, results=[""] * len(operation.digests), failed=False
         )
         signing_results = SigningResults(
             signer=self,
@@ -410,24 +431,13 @@ class MsgSigner(Signer):
             return signing_results
 
         operation_result = ContainerSignResult(
-            signing_key=operation.signing_key, signed_claims=[""] * len(messages)
+            signing_key=operation.signing_key, results=[""] * len(messages), failed=False
         )
         for recv_id, received in recvc.recv.items():
-            operation_result.signed_claims[messages.index(message_to_data[recv_id])] = received
+            operation_result.failed = True if received[0]["msg"]["errors"] else False
+            operation_result.results[messages.index(message_to_data[recv_id])] = received
         signing_results.operation_result = operation_result
         return signing_results
-
-
-def _get_config_file(config_candidate):
-    if not os.path.exists(config_candidate):
-        for config_candidate in CONFIG_PATHS:
-            if os.path.exists(os.path.expanduser(config_candidate)):
-                break
-        else:
-            raise ValueError(
-                "No configuration file found: %s" % list(set(CONFIG_PATHS + [config_candidate]))
-            )
-    return config_candidate
 
 
 def msg_clear_sign(inputs, signing_key=None, task_id=None, config="", repo=""):
@@ -471,7 +481,7 @@ def msg_container_sign(
     signing_result = msg_signer.sign(operation)
     return {
         "signer_result": signing_result.signer_results.to_dict(),
-        "operation_results": signing_result.operation_result.signed_claims,
+        "operation_results": signing_result.operation_result.results,
         "signing_key": signing_result.operation_result.signing_key,
     }
 
@@ -505,7 +515,6 @@ def msg_clear_sign_main(
     ret = msg_clear_sign(inputs, signing_key=signing_key, task_id=task_id, repo=repo, config=config)
     if not raw:
         click.echo(json.dumps(ret))
-        print(ret)
         if ret["signer_result"]["status"] == "error":
             sys.exit(1)
     else:
@@ -514,7 +523,12 @@ def msg_clear_sign_main(
             sys.exit(1)
         else:
             for claim in ret["operation_results"]:
-                print(claim)
+                if claim[0]["msg"]["errors"]:
+                    for error in claim[0]["msg"]["errors"]:
+                        print(error, file=sys.stderr)
+                    sys.exit(1)
+                else:
+                    print(claim[0]["msg"]["signed_data"])
 
 
 @click.command()
@@ -576,9 +590,10 @@ def msg_container_sign_main(
         if ret["signer_result"]["status"] == "error":
             sys.exit(1)
     else:
-        if ret["signer_result"]["status"] == "error":
-            print(ret["signer_result"]["error_message"], file=sys.stderr)
-            sys.exit(1)
-        else:
-            for claim in ret["operation_results"]:
-                print(claim)
+        for claim in ret["operation_results"]:
+            if claim[0]["msg"]["errors"]:
+                for error in claim[0]["msg"]["errors"]:
+                    print(error, file=sys.stderr)
+                sys.exit(1)
+            else:
+                print(claim[0]["msg"]["signed_claim"])

@@ -31,7 +31,7 @@ def test_msg_container_sign(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
         "status": "ok"
     }
-    f_msg_signer.return_value.sign.return_value.operation_result.signed_claims = []
+    f_msg_signer.return_value.sign.return_value.operation_result.results = []
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         msg_container_sign_main,
@@ -57,7 +57,7 @@ def test_msg_container_sign_error(f_msg_signer, f_config_msg_signer_ok):
         "status": "error",
         "error_message": "simulated error",
     }
-    f_msg_signer.return_value.sign.return_value.operation_result.signed_claims = []
+    f_msg_signer.return_value.sign.return_value.operation_result.results = []
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         msg_container_sign_main,
@@ -82,7 +82,9 @@ def test_msg_container_sign_raw(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
         "status": "ok"
     }
-    f_msg_signer.return_value.sign.return_value.operation_result.signed_claims = ["signed"]
+    f_msg_signer.return_value.sign.return_value.operation_result.results = [
+        ({"i": 456, "msg": {"errors": [], "signed_claim": "signed"}}, {})
+    ]
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         msg_container_sign_main,
@@ -107,10 +109,18 @@ def test_msg_container_sign_raw(f_msg_signer, f_config_msg_signer_ok):
 
 def test_msg_container_sign_raw_error(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
-        "status": "error",
-        "error_message": "simulated error",
+        "status": "ok",
+        "error_message": "",
     }
-    f_msg_signer.return_value.sign.return_value.operation_result.signed_claims = []
+    f_msg_signer.return_value.sign.return_value.operation_result.results = [
+        (
+            {
+                "i": 456,
+                "msg": {"errors": ['no signing key "test-signing-key"'], "signed_claim": None},
+            },
+            {},
+        )
+    ]
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         msg_container_sign_main,
@@ -130,14 +140,16 @@ def test_msg_container_sign_raw_error(f_msg_signer, f_config_msg_signer_ok):
     )
     print(result.stdout)
     assert result.exit_code == 1, result.output
-    assert result.output == "simulated error\n"
+    assert result.output == 'no signing key "test-signing-key"\n'
 
 
 def test_msg_clearsign_sign(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
         "status": "ok"
     }
-    f_msg_signer.return_value.sign.return_value.operation_result.outputs = []
+    f_msg_signer.return_value.sign.return_value.operation_result.outputs = [
+        ({"i": 456, "msg": {"errors": [], "signed_data": "test"}}, {})
+    ]
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         msg_clear_sign_main,
@@ -151,7 +163,8 @@ def test_msg_clearsign_sign(f_msg_signer, f_config_msg_signer_ok):
             "hello world",
         ],
     )
-    assert result.exit_code == 0, result.output
+    print(result.output)
+    assert result.exit_code == 0, result
 
 
 def test_msg_clearsign_sign_error(f_msg_signer, f_config_msg_signer_ok):
@@ -180,7 +193,9 @@ def test_msg_clearsign_sign_raw(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
         "status": "ok"
     }
-    f_msg_signer.return_value.sign.return_value.operation_result.outputs = ["signed"]
+    f_msg_signer.return_value.sign.return_value.operation_result.outputs = [
+        ({"i": 456, "msg": {"errors": [], "signed_data": "signed"}}, {})
+    ]
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         msg_clear_sign_main,
@@ -199,12 +214,38 @@ def test_msg_clearsign_sign_raw(f_msg_signer, f_config_msg_signer_ok):
     assert result.output == "signed\n"
 
 
-def test_msg_clearsign_sign_raw_error(f_msg_signer, f_config_msg_signer_ok):
+def test_msg_clearsign_sign_raw_error2(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
         "status": "error",
         "error_message": "simulated error",
     }
     f_msg_signer.return_value.sign.return_value.operation_result.outputs = []
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    result = CliRunner().invoke(
+        msg_clear_sign_main,
+        [
+            "--signing-key",
+            "test-signing-key",
+            "--task-id",
+            "1",
+            "--config",
+            f_config_msg_signer_ok,
+            "--raw",
+            "hello world",
+        ],
+    )
+    print(result.stdout)
+    assert result.exit_code == 1, result.output
+    assert result.output == "simulated error\n"
+
+
+def test_msg_clearsign_sign_raw_error(f_msg_signer, f_config_msg_signer_ok):
+    f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
+        "status": "ok",
+    }
+    f_msg_signer.return_value.sign.return_value.operation_result.outputs = [
+        ({"i": 456, "msg": {"errors": ["simulated error"], "signed_data": "signed"}}, {})
+    ]
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
     result = CliRunner().invoke(
         msg_clear_sign_main,
@@ -469,6 +510,33 @@ def test_clear_sign(patched_uuid, f_config_msg_signer_ok):
 
 
 @patch("uuid.uuid4", return_value="1234-5678-abcd-efgh")
+def test_clear_sign_aliases(patched_uuid, f_config_msg_signer_aliases):
+    clear_sign_operation = ClearSignOperation(
+        inputs=["hello world"], signing_key="beta", task_id="1", repo="repo"
+    )
+    with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
+        with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
+            patched_send_client.return_value.run.return_value = []
+            patched_recv_client.return_value.run.return_value = []
+            patched_recv_client.return_value.recv = {"1234-5678-abcd-efgh": "signed:'hello world'"}
+            patched_recv_client.return_value.errors = []
+
+            signer = MsgSigner()
+            signer.load_config(load_config(f_config_msg_signer_aliases))
+            res = signer.clear_sign(clear_sign_operation)
+
+            assert res == SigningResults(
+                signer=signer,
+                operation=clear_sign_operation,
+                signer_results=MsgSignerResults(status="ok", error_message=""),
+                operation_result=ClearSignResult(
+                    outputs=["signed:'hello world'"],
+                    signing_key="beta",
+                ),
+            )
+
+
+@patch("uuid.uuid4", return_value="1234-5678-abcd-efgh")
 def test_clear_sign_recv_errors(patched_uuid, f_config_msg_signer_ok):
     clear_sign_operation = ClearSignOperation(
         inputs=["hello world"], signing_key="test-signing-key", task_id="1", repo="repo"
@@ -540,7 +608,12 @@ def test_container_sign(patched_uuid, f_config_msg_signer_ok, f_client_certifica
         with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
             patched_send_client.return_value.run.return_value = []
             patched_recv_client.return_value.run.return_value = []
-            patched_recv_client.return_value.recv = {"1234-5678-abcd-efgh": "signed:'claim'"}
+            patched_recv_client.return_value.recv = {
+                "1234-5678-abcd-efgh": (
+                    {"msg": {"errors": [], "signed_claim": "signed:'claim'"}},
+                    {"fake": "headers"},
+                )
+            }
             patched_recv_client.return_value.errors = []
 
             signer = MsgSigner()
@@ -561,7 +634,66 @@ def test_container_sign(patched_uuid, f_config_msg_signer_ok, f_client_certifica
                 operation=container_sign_operation,
                 signer_results=MsgSignerResults(status="ok", error_message=""),
                 operation_result=ContainerSignResult(
-                    signed_claims=["signed:'claim'"], signing_key="test-signing-key"
+                    results=[
+                        (
+                            {"msg": {"errors": [], "signed_claim": "signed:'claim'"}},
+                            {"fake": "headers"},
+                        )
+                    ],
+                    signing_key="test-signing-key",
+                    failed=False,
+                ),
+            )
+
+
+@patch("uuid.uuid4", return_value="1234-5678-abcd-efgh")
+def test_container_sign_alias(patched_uuid, f_config_msg_signer_aliases, f_client_certificate):
+    container_sign_operation = ContainerSignOperation(
+        task_id="1",
+        digests=["sha256:abcdefg"],
+        references=["some-registry/namespace/repo:tag"],
+        signing_key="beta",
+        repo="repo",
+    )
+
+    with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
+        with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
+            patched_send_client.return_value.run.return_value = []
+            patched_recv_client.return_value.run.return_value = []
+            patched_recv_client.return_value.recv = {
+                "1234-5678-abcd-efgh": (
+                    {"msg": {"errors": [], "signed_claim": "signed:'claim'"}},
+                    {"fake": "headers"},
+                )
+            }
+            patched_recv_client.return_value.errors = []
+
+            signer = MsgSigner()
+            signer.load_config(load_config(f_config_msg_signer_aliases))
+            res = signer.container_sign(container_sign_operation)
+
+            patched_send_client.assert_called_with(
+                messages=[ANY],
+                broker_urls=["amqps://broker-01:5671", "amqps://broker-02:5671"],
+                cert=f_client_certificate,
+                ca_cert=os.path.expanduser("~/messaging/ca-cert.crt"),
+                retries=3,
+                errors=[],
+            )
+
+            assert res == SigningResults(
+                signer=signer,
+                operation=container_sign_operation,
+                signer_results=MsgSignerResults(status="ok", error_message=""),
+                operation_result=ContainerSignResult(
+                    results=[
+                        (
+                            {"msg": {"errors": [], "signed_claim": "signed:'claim'"}},
+                            {"fake": "headers"},
+                        )
+                    ],
+                    signing_key="beta",
+                    failed=False,
                 ),
             )
 
@@ -597,7 +729,7 @@ def test_container_sign_recv_errors(patched_uuid, f_config_msg_signer_ok):
                     status="error", error_message="TestError : test error description\n"
                 ),
                 operation_result=ContainerSignResult(
-                    signed_claims=[""], signing_key="test-signing-key"
+                    results=[""], signing_key="test-signing-key", failed=False
                 ),
             )
 
@@ -632,7 +764,7 @@ def test_container_sign_send_errors(patched_uuid, f_config_msg_signer_ok):
                     status="error", error_message="TestError : test error description\n"
                 ),
                 operation_result=ContainerSignResult(
-                    signed_claims=[""], signing_key="test-signing-key"
+                    results=[""], signing_key="test-signing-key", failed=False
                 ),
             )
 
@@ -672,6 +804,7 @@ def test_msgsig_doc_arguments():
                 "description": "Attribute name in message body which should be used as message id"
             },
             "log_level": {"description": "Log level"},
+            "key_aliases": {"description": "Aliases for signing keys"},
         },
         "examples": {
             "msg_signer": {
@@ -688,6 +821,7 @@ def test_msgsig_doc_arguments():
                 "retries": 3,
                 "message_id_key": "123",
                 "log_level": "debug",
+                "key_aliases": "{'production':'abcde1245'}",
             }
         },
     }
