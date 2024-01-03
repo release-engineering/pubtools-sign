@@ -523,7 +523,20 @@ def test_clear_sign_aliases(patched_uuid, f_config_msg_signer_aliases):
 
             signer = MsgSigner()
             signer.load_config(load_config(f_config_msg_signer_aliases))
-            res = signer.clear_sign(clear_sign_operation)
+            with patch(
+                "pubtools.sign.signers.msgsigner.MsgSigner._construct_signing_message"
+            ) as patch_construct_signing_message:
+                patch_construct_signing_message.return_value = {
+                    "request_id": "1234-5678-abcd-efgh",
+                }
+                res = signer.clear_sign(clear_sign_operation)
+                patch_construct_signing_message.assert_called_once_with(
+                    "aGVsbG8gd29ybGQ=",
+                    "abcde1245",
+                    repo="repo",
+                    extra_attrs={"pub_task_id": "1"},
+                    sig_type="clearsign_signature",
+                )
 
             assert res == SigningResults(
                 signer=signer,
@@ -670,7 +683,21 @@ def test_container_sign_alias(patched_uuid, f_config_msg_signer_aliases, f_clien
 
             signer = MsgSigner()
             signer.load_config(load_config(f_config_msg_signer_aliases))
-            res = signer.container_sign(container_sign_operation)
+
+            with patch(
+                "pubtools.sign.signers.msgsigner.MsgSigner._construct_signing_message"
+            ) as patch_construct_signing_message:
+                patch_construct_signing_message.return_value = {
+                    "request_id": "1234-5678-abcd-efgh",
+                }
+                res = signer.container_sign(container_sign_operation)
+                patch_construct_signing_message.assert_called_once_with(
+                    ANY,
+                    "abcde1245",
+                    repo="repo",
+                    extra_attrs={"pub_task_id": "1", "manifest_digest": "sha256:abcdefg"},
+                    sig_type="container_signature",
+                )
 
             patched_send_client.assert_called_with(
                 messages=[ANY],

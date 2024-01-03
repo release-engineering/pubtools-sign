@@ -187,11 +187,15 @@ class MsgSigner(Signer):
     def _create_msg_message(
         self: MsgSigner, data, operation: SignOperation, sig_type: SignRequestType, extra_attrs=None
     ):
+        if operation.signing_key in self.key_aliases:
+            signing_key = self.key_aliases[operation.signing_key]
+        else:
+            signing_key = operation.signing_key
         ret = MsgMessage(
             headers=self._construct_headers(sig_type, extra_attrs=extra_attrs),
             body=self._construct_signing_message(
                 data,
-                operation.signing_key,
+                signing_key,
                 repo=operation.repo,
                 extra_attrs=extra_attrs,
                 sig_type=sig_type.value,
@@ -274,7 +278,7 @@ class MsgSigner(Signer):
 
         signer_results = MsgSignerResults(status="ok", error_message="")
         operation_result = ClearSignResult(
-            signing_key=signing_key, outputs=[""] * len(operation.inputs)
+            signing_key=operation.signing_key, outputs=[""] * len(operation.inputs)
         )
         signing_results = SigningResults(
             signer=self,
@@ -362,11 +366,13 @@ class MsgSigner(Signer):
         if len(operation.digests) != len(operation.references):
             raise ValueError("Digests must pairs with references")
 
+        signing_key = operation.signing_key
+        if signing_key in self.key_aliases:
+            signing_key = self.key_aliases[signing_key]
+
         for digest, reference in zip(operation.digests, operation.references):
             message = self._create_msg_message(
-                self.create_manifest_claim_message(
-                    operation.signing_key, digest=digest, reference=reference
-                ),
+                self.create_manifest_claim_message(signing_key, digest=digest, reference=reference),
                 operation,
                 SignRequestType.CONTAINER,
                 extra_attrs={"pub_task_id": operation.task_id, "manifest_digest": digest},
@@ -375,12 +381,9 @@ class MsgSigner(Signer):
             messages.append(message)
 
         signer_results = MsgSignerResults(status="ok", error_message="")
-        signing_key = operation.signing_key
-        if signing_key in self.key_aliases:
-            signing_key = self.key_aliases[signing_key]
-            LOG.info(f"Using signing key alias {signing_key} for {operation.signing_key}")
+        LOG.info(f"Using signing key alias {signing_key} for {operation.signing_key}")
         operation_result = ContainerSignResult(
-            signing_key=signing_key, results=[""] * len(operation.digests), failed=False
+            signing_key=operation.signing_key, results=[""] * len(operation.digests), failed=False
         )
         signing_results = SigningResults(
             signer=self,
