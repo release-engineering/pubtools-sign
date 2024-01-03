@@ -443,10 +443,10 @@ class MsgSigner(Signer):
         return signing_results
 
 
-def msg_clear_sign(inputs, signing_key=None, task_id=None, config="", repo=""):
+def msg_clear_sign(inputs, signing_key=None, task_id=None, config_file="", repo=""):
     """Run clearsign operation."""
     msg_signer = MsgSigner()
-    config = _get_config_file(config)
+    config = _get_config_file(config_file)
     msg_signer.load_config(load_config(os.path.expanduser(config)))
 
     str_inputs = []
@@ -467,11 +467,11 @@ def msg_clear_sign(inputs, signing_key=None, task_id=None, config="", repo=""):
 
 
 def msg_container_sign(
-    signing_key=None, task_id=None, config="", digest=None, reference=None, repo=None
+    signing_key=None, task_id=None, config_file="", digest=None, reference=None, repo=None
 ):
     """Run containersign operation with cli arguments."""
     msg_signer = MsgSigner()
-    config = _get_config_file(config)
+    config = _get_config_file(config_file)
     msg_signer.load_config(load_config(os.path.expanduser(config)))
 
     operation = ContainerSignOperation(
@@ -496,7 +496,7 @@ def msg_container_sign(
     help="8 characters key fingerprint of key which should be used for signing",
 )
 @click.option("--task-id", required=True, help="Task id identifier (usually pub task-id)")
-@click.option("--config", default=CONFIG_PATHS[0], help="path to the config file")
+@click.option("--config-file", default=CONFIG_PATHS[0], help="path to the config file")
 @click.option("--raw", default=False, is_flag=True, help="Print raw output instead of json")
 @click.option(
     "--log-level",
@@ -507,7 +507,7 @@ def msg_container_sign(
 @click.option("--repo", help="Repository reference")
 @click.argument("inputs", nargs=-1)
 def msg_clear_sign_main(
-    inputs, signing_key=None, task_id=None, config=None, raw=None, log_level=None, repo=None
+    inputs, signing_key=None, task_id=None, config_file=None, raw=None, log_level=None, repo=None
 ):
     """Entry point method for clearsign operation."""
     ch = logging.StreamHandler()
@@ -515,7 +515,9 @@ def msg_clear_sign_main(
     LOG.addHandler(ch)
     logging.basicConfig(encoding="utf-8", level=getattr(logging, log_level))
 
-    ret = msg_clear_sign(inputs, signing_key=signing_key, task_id=task_id, repo=repo, config=config)
+    ret = msg_clear_sign(
+        inputs, signing_key=signing_key, task_id=task_id, repo=repo, config_file=config_file
+    )
     if not raw:
         click.echo(json.dumps(ret))
         if ret["signer_result"]["status"] == "error":
@@ -541,7 +543,7 @@ def msg_clear_sign_main(
     help="8 characters key fingerprint of key which should be used for signing",
 )
 @click.option("--task-id", required=True, help="Task id identifier (usually pub task-id)")
-@click.option("--config", default=CONFIG_PATHS[0], help="path to the config file")
+@click.option("--config-file", default=CONFIG_PATHS[0], help="path to the config file")
 @click.option(
     "--digest",
     required=True,
@@ -567,7 +569,7 @@ def msg_clear_sign_main(
 def msg_container_sign_main(
     signing_key=None,
     task_id=None,
-    config=None,
+    config_file=None,
     digest=None,
     reference=None,
     raw=None,
@@ -583,7 +585,7 @@ def msg_container_sign_main(
     ret = msg_container_sign(
         signing_key=signing_key,
         task_id=task_id,
-        config=config,
+        config_file=config_file,
         digest=digest,
         reference=reference,
         repo=repo,

@@ -23,7 +23,7 @@ def test_bundle_msg_container_sign(f_msg_signer, f_config_msg_signer_ok):
             "1",
             "--repo",
             "repo",
-            "--config",
+            "--config-file",
             f_config_msg_signer_ok,
         ],
     )
@@ -46,7 +46,7 @@ def test_bundle_msg_clear_sign(f_msg_signer, f_config_msg_signer_ok):
             "1",
             "--repo",
             "repo",
-            "--config",
+            "--config-file",
             f_config_msg_signer_ok,
             "hello world",
         ],

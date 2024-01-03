@@ -58,7 +58,7 @@ def test_run_module_ok(clear_sign_mock, f_config_msg_signer_ok):
         "inputs": ["hello world"],
         "signing_key": "test-signing-key",
         "task_id": "1",
-        "config": f_config_msg_signer_ok,
+        "config_file": f_config_msg_signer_ok,
         "repo": "repo",
     }
 
@@ -106,7 +106,7 @@ def test_run_module_failed(clear_sign_mock, f_config_msg_signer_ok):
         "inputs": [f"@{f_config_msg_signer_ok}"],
         "signing_key": "test-signing-key",
         "task_id": "1",
-        "config": f_config_msg_signer_ok,
+        "config_file": f_config_msg_signer_ok,
         "repo": "repo",
     }
 
@@ -141,7 +141,7 @@ def test_run_module_exception(sign_mock, f_config_msg_signer_ok):
         "signing_key": "test-signing-key",
         "task_id": "1",
         "repo": "repo",
-        "config": f_config_msg_signer_ok,
+        "config_file": f_config_msg_signer_ok,
     }
     set_module_args(parameters)
     with pytest.raises(AnsibleFailJson) as result:
@@ -156,7 +156,7 @@ def test_run_module_check_mode(sign_mock, f_config_msg_signer_ok):
         "inputs": ["hello world"],
         "signing_key": "test-signing-key",
         "task_id": "1",
-        "config": f_config_msg_signer_ok,
+        "config_file": f_config_msg_signer_ok,
         "_ansible_check_mode": True,
         "repo": "repo",
     }

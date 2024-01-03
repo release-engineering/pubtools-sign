@@ -72,7 +72,7 @@ def run_module():
         signing_key=dict(type="str", required=True),
         task_id=dict(type="str", required=True),
         repo=dict(type="str", required=True),
-        config=dict(type="str", required=False),
+        config_file=dict(type="str", required=False),
     )
 
     result = dict(changed=False, message="")
@@ -87,13 +87,13 @@ def run_module():
     inputs = module.params["inputs"]
     signing_key = module.params["signing_key"]
     task_id = module.params["task_id"]
-    config = module.params["config"]
+    config_file = module.params["config_file"]
     repo = module.params["repo"]
 
     # Call clear sign and return signed data
     try:
         signing_result = msg_clear_sign(
-            inputs, signing_key=signing_key, task_id=task_id, config=config, repo=repo
+            inputs, signing_key=signing_key, task_id=task_id, config_file=config_file, repo=repo
         )
     except Exception as ex:
         module.fail_json(msg=str(ex), exception=ex)
