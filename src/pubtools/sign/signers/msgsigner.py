@@ -369,6 +369,7 @@ class MsgSigner(Signer):
         signing_key = operation.signing_key
         if signing_key in self.key_aliases:
             signing_key = self.key_aliases[signing_key]
+            LOG.info(f"Using signing key alias {signing_key} for {operation.signing_key}")
 
         for digest, reference in zip(operation.digests, operation.references):
             message = self._create_msg_message(
@@ -381,7 +382,6 @@ class MsgSigner(Signer):
             messages.append(message)
 
         signer_results = MsgSignerResults(status="ok", error_message="")
-        LOG.info(f"Using signing key alias {signing_key} for {operation.signing_key}")
         operation_result = ContainerSignResult(
             signing_key=operation.signing_key, results=[""] * len(operation.digests), failed=False
         )
