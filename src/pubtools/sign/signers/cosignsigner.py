@@ -334,7 +334,7 @@ def cosign_container_sign(
         dict: signing result
     """
     cosign_signer = CosignSigner()
-    config = _get_config_file(config)
+    config = _get_config_file(config_file)
     cosign_signer.load_config(load_config(os.path.expanduser(config)))
 
     operation = ContainerSignOperation(
@@ -352,7 +352,7 @@ def cosign_container_sign(
     }
 
 
-def cosign_list_existing_signatures(config: str, reference: str) -> Tuple[bool, str]:
+def cosign_list_existing_signatures(config_file: str, reference: str) -> Tuple[bool, str]:
     """List existing signatures for given reference.
 
     Args:
@@ -362,7 +362,7 @@ def cosign_list_existing_signatures(config: str, reference: str) -> Tuple[bool, 
         Tuple[bool, str]: tuple of success flag and error message or result string
     """
     cosign_signer = CosignSigner()
-    config = _get_config_file(config)
+    config = _get_config_file(config_file)
     cosign_signer.load_config(load_config(os.path.expanduser(config)))
     return cosign_signer.existing_signatures(reference)
 
