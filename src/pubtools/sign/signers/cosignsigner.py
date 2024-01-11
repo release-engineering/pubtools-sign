@@ -327,7 +327,7 @@ def cosign_container_sign(
 
     Args:
         signing_key (str): path to the signing key
-        config (str): path to the config file
+        config_file (str): path to the config file
         digest (str): digest of the image to sign
         reference (str): reference of the image to sign
     Returns:
@@ -356,7 +356,7 @@ def cosign_list_existing_signatures(config_file: str, reference: str) -> Tuple[b
     """List existing signatures for given reference.
 
     Args:
-        config (str): path to the config file
+        config_file (str): path to the config file
         reference (str): reference to get list of signatures for
     Returns:
         Tuple[bool, str]: tuple of success flag and error message or result string
