@@ -540,7 +540,7 @@ def msg_clear_sign_main(
     ch.setLevel(getattr(logging, sanitize_log_level(log_level)))
 
     LOG.addHandler(ch)
-    logging.basicConfig(encoding="utf-8", level=getattr(logging, sanitize_log_level(log_level)))
+    logging.basicConfig(level=getattr(logging, sanitize_log_level(log_level)))
 
     ret = msg_clear_sign(
         inputs,
@@ -611,7 +611,7 @@ def msg_container_sign_main(
     ch = logging.StreamHandler()
     ch.setLevel(getattr(logging, sanitize_log_level(log_level)))
     LOG.addHandler(ch)
-    logging.basicConfig(encoding="utf-8", level=getattr(logging, sanitize_log_level(log_level)))
+    logging.basicConfig(level=getattr(logging, sanitize_log_level(log_level)))
 
     # TOFIX: inconsistency: this method has default config_file value as None,
     # msg_container_sign has it as empty string
