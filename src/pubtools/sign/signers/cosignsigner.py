@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import field, dataclass
 import json
 import logging
-from typing import Dict, List, ClassVar, Any, Tuple, Type, Union
+from typing import Dict, List, ClassVar, Any, Tuple, Type
 from typing_extensions import Self
 import os
 import sys
@@ -318,10 +318,10 @@ class CosignSigner(Signer):
 
 
 def cosign_container_sign(
-    signing_key: Union[str, None] = None,
+    signing_key: str = "",
     config: str = "",
-    digest: Union[str, None] = None,
-    reference: Union[str, None] = None,
+    digest: List[str] = [],
+    reference: List[str] = [],
 ) -> Dict[str, Any]:
     """Run containersign operation with cli arguments.
 
@@ -337,20 +337,16 @@ def cosign_container_sign(
     config = _get_config_file(config)
     cosign_signer.load_config(load_config(os.path.expanduser(config)))
 
-    # TOFIX: digest is a str, but ContainerSignOperation expects list
-    # TOFIX: reference is a str, but ContainerSignOperation expects list
-    # TOFIX: signing_key can be None, but ContainerSignOperation expects str
     operation = ContainerSignOperation(
-        digests=digest,  # type: ignore
-        references=reference,  # type: ignore
-        signing_key=signing_key,  # type: ignore
+        digests=digest,
+        references=reference,
+        signing_key=signing_key,
         task_id="",
         repo="",
     )
     signing_result = cosign_signer.sign(operation)
     return {
         "signer_result": signing_result.signer_results.to_dict(),
-        # TOFIX: not all operation results classes contain "results". The abstraction is not correct
         "operation_results": signing_result.operation_result.results,  # type: ignore
         "signing_key": signing_result.operation_result.signing_key,
     }
@@ -393,20 +389,17 @@ def cosign_list_existing_signatures(config: str, reference: str) -> Tuple[bool, 
     help="References which should be signed.",
 )
 @click.option("--raw", default=False, is_flag=True, help="Print raw output instead of json")
-# TOFIX: should raw be a boolean?
 def cosign_container_sign_main(
-    signing_key: Union[str, None] = None,
-    config: Union[str, None] = None,
-    digest: Union[str, None] = None,
-    reference: Union[str, None] = None,
-    raw: Union[bool, None] = None,
+    signing_key: str = "",
+    config: str = "",
+    digest: List[str] = [],
+    reference: List[str] = [],
+    raw: bool = False,
 ) -> None:
     """Entry point method for containersign operation."""
-    # TOFIX: inconsistency: this method has default config value as None,
-    # cosign_container_sign has it as empty string
     ret = cosign_container_sign(
         signing_key=signing_key,
-        config=config,  # type: ignore
+        config=config,
         digest=digest,
         reference=reference,
     )

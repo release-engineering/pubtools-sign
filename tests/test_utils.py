@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from pubtools.sign.utils import set_log_level
+from pubtools.sign.utils import set_log_level, sanitize_log_level
 
 
 def test_set_log_level():
@@ -17,3 +17,14 @@ def test_set_log_level():
     assert LOG.level == logging.ERROR
     with pytest.raises(ValueError):
         set_log_level(LOG, "UNKNOWN")
+
+
+def test_sanitize_log_level():
+    assert sanitize_log_level("DEBUG") == "DEBUG"
+    assert sanitize_log_level("INFO") == "INFO"
+    assert sanitize_log_level("WARNING") == "WARNING"
+    assert sanitize_log_level("Warning") == "WARNING"
+    assert sanitize_log_level("ERROR") == "ERROR"
+    assert sanitize_log_level("UNKNOWN") == "INFO"
+    assert sanitize_log_level("unknown") == "INFO"
+    assert sanitize_log_level("UnKnOwN") == "INFO"

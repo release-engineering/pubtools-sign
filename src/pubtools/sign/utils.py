@@ -20,6 +20,20 @@ def set_log_level(logger: logging.Logger, level: str) -> None:
     logger.setLevel(level.upper())
 
 
+def sanitize_log_level(log_level: str) -> str:
+    """Sanitize log level. Returns INFO if provided value is invalid.
+
+    Args:
+        log_level (str): log level
+    Returns:
+        str: log level
+    """
+    if log_level.upper() not in ("DEBUG", "INFO", "WARNING", "ERROR"):
+        return "INFO"
+    else:
+        return log_level.upper()
+
+
 def isodate_now() -> str:
     """Return current datetime in ISO-8601.
 

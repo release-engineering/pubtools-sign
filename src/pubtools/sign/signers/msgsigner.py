@@ -5,7 +5,7 @@ from dataclasses import field, dataclass, asdict
 import enum
 import json
 import logging
-from typing import Dict, List, ClassVar, Any, Optional, Type, Union
+from typing import cast, Dict, List, ClassVar, Any, Optional, Type
 from typing_extensions import Self
 import uuid
 import os
@@ -25,7 +25,7 @@ from ..clients.msg_send_client import SendClient
 from ..clients.msg_recv_client import RecvClient
 from ..models.msg import MsgMessage, MsgError
 from ..conf.conf import load_config, CONFIG_PATHS
-from ..utils import set_log_level, isodate_now, _get_config_file
+from ..utils import set_log_level, sanitize_log_level, isodate_now, _get_config_file
 
 
 LOG = logging.getLogger("pubtools.sign.signers.msgsigner")
@@ -453,8 +453,8 @@ class MsgSigner(Signer):
 # TOFIX: ClearSignOperation expects non-None values as its arguments, but they cna sometimes be None
 def msg_clear_sign(
     inputs: List[str],
-    signing_key: Union[str, None] = None,
-    task_id: Union[str, None] = None,
+    signing_key: str = "",
+    task_id: str = "",
     config_file: str = "",
     repo: str = "",
 ) -> Dict[str, Any]:
@@ -470,37 +470,35 @@ def msg_clear_sign(
         else:
             str_inputs.append(input_)
     operation = ClearSignOperation(
-        inputs=str_inputs, signing_key=signing_key, task_id=task_id, repo=repo  # type: ignore
+        inputs=str_inputs, signing_key=signing_key, task_id=task_id, repo=repo
     )
     signing_result = msg_signer.sign(operation)
     return {
         "signer_result": signing_result.signer_results.to_dict(),
-        # TOFIX: not all operation results classes contain "outputs". The abstraction is not correct
-        "operation_results": signing_result.operation_result.outputs,  # type: ignore
+        "operation_results": cast(ClearSignResult, signing_result.operation_result).outputs,
         "signing_key": signing_result.operation_result.signing_key,
     }
 
 
 def msg_container_sign(
-    signing_key: Union[str, None] = None,
-    task_id: Union[str, None] = None,
+    signing_key: str = "",
+    task_id: str = "",
     config_file: str = "",
-    digest: Union[str, None] = None,
-    reference: Union[str, None] = None,
-    repo: Union[str, None] = None,
+    digest: list[str] = [],
+    reference: list[str] = [],
+    repo: str = "",
 ) -> Dict[str, Any]:
     """Run containersign operation with cli arguments."""
     msg_signer = MsgSigner()
     config = _get_config_file(config_file)
     msg_signer.load_config(load_config(os.path.expanduser(config)))
 
-    # TOFIX: ContainerSignOperation doesn't expect None values, but this function uses it as default
     operation = ContainerSignOperation(
-        digests=digest,  # type: ignore
-        references=reference,  # type: ignore
-        signing_key=signing_key,  # type: ignore
-        task_id=task_id,  # type: ignore
-        repo=repo,  # type: ignore
+        digests=digest,
+        references=reference,
+        signing_key=signing_key,
+        task_id=task_id,
+        repo=repo,
     )
     signing_result = msg_signer.sign(operation)
     return {
@@ -528,34 +526,28 @@ def msg_container_sign(
 )
 @click.option("--repo", help="Repository reference")
 @click.argument("inputs", nargs=-1)
-# TOFIX: inconsistency: in this function config can be None,
-#        in msg_clear_sign it's an empty string by default
-# TOFIX: should raw be a boolean? Why is it None?
 def msg_clear_sign_main(
     inputs: List[str],
-    signing_key: Union[str, None] = None,
-    task_id: Union[str, None] = None,
-    config_file: Union[str, None] = None,
-    raw: Any = None,
-    log_level: Union[str, None] = None,
-    repo: Union[str, None] = None,
+    signing_key: str = "",
+    task_id: str = "",
+    config_file: str = "",
+    raw: bool = False,
+    log_level: str = "INFO",
+    repo: str = "",
 ) -> None:
     """Entry point method for clearsign operation."""
     ch = logging.StreamHandler()
-    # TOFIX: log_level shouldn't ever be None
-    ch.setLevel(getattr(logging, log_level))  # type: ignore
-    LOG.addHandler(ch)
-    # TOFIX: log_level shouldn't ever be None
-    logging.basicConfig(encoding="utf-8", level=getattr(logging, log_level))  # type: ignore
+    ch.setLevel(getattr(logging, sanitize_log_level(log_level)))
 
-    # TOFIX: inconsistency: this method has default repo and config values as None,
-    # msg_clear_sign has them as empty strings
+    LOG.addHandler(ch)
+    logging.basicConfig(encoding="utf-8", level=getattr(logging, sanitize_log_level(log_level)))
+
     ret = msg_clear_sign(
         inputs,
         signing_key=signing_key,
         task_id=task_id,
-        repo=repo,  # type: ignore
-        config_file=config_file,  # type: ignore
+        repo=repo,
+        config_file=config_file,
     )
     if not raw:
         click.echo(json.dumps(ret))
@@ -606,29 +598,27 @@ def msg_clear_sign_main(
 )
 @click.option("--repo", help="Repository reference")
 def msg_container_sign_main(
-    signing_key: Union[str, None] = None,
-    task_id: Union[str, None] = None,
-    config_file: Union[str, None] = None,
-    digest: Union[str, None] = None,
-    reference: Union[str, None] = None,
-    raw: Union[bool, None] = None,
-    log_level: Union[str, None] = None,
-    repo: Union[str, None] = None,
+    signing_key: str = "",
+    task_id: str = "",
+    config_file: str = "",
+    digest: List[str] = [],
+    reference: List[str] = [],
+    raw: bool = False,
+    log_level: str = "INFO",
+    repo: str = "",
 ) -> None:
     """Entry point method for containersign operation."""
     ch = logging.StreamHandler()
-    # TOFIX: log_level shouldn't ever be None
-    ch.setLevel(getattr(logging, log_level))  # type: ignore
+    ch.setLevel(getattr(logging, sanitize_log_level(log_level)))
     LOG.addHandler(ch)
-    # TOFIX: log_level shouldn't ever be None
-    logging.basicConfig(encoding="utf-8", level=getattr(logging, log_level))  # type: ignore
+    logging.basicConfig(encoding="utf-8", level=getattr(logging, sanitize_log_level(log_level)))
 
     # TOFIX: inconsistency: this method has default config_file value as None,
     # msg_container_sign has it as empty string
     ret = msg_container_sign(
         signing_key=signing_key,
         task_id=task_id,
-        config_file=config_file,  # type: ignore
+        config_file=config_file,
         digest=digest,
         reference=reference,
         repo=repo,
