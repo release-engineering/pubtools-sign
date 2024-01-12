@@ -450,7 +450,6 @@ class MsgSigner(Signer):
         return signing_results
 
 
-# TOFIX: ClearSignOperation expects non-None values as its arguments, but they cna sometimes be None
 def msg_clear_sign(
     inputs: List[str],
     signing_key: str = "",
@@ -503,7 +502,6 @@ def msg_container_sign(
     signing_result = msg_signer.sign(operation)
     return {
         "signer_result": signing_result.signer_results.to_dict(),
-        # TOFIX: not all operation results classes contain "results". The abstraction is not correct
         "operation_results": signing_result.operation_result.results,  # type: ignore
         "signing_key": signing_result.operation_result.signing_key,
     }
@@ -613,8 +611,6 @@ def msg_container_sign_main(
     LOG.addHandler(ch)
     logging.basicConfig(level=getattr(logging, sanitize_log_level(log_level)))
 
-    # TOFIX: inconsistency: this method has default config_file value as None,
-    # msg_container_sign has it as empty string
     ret = msg_container_sign(
         signing_key=signing_key,
         task_id=task_id,
