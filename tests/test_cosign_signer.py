@@ -59,7 +59,7 @@ def f_expected_container_sign_args(f_config_cosign_signer_ok):
         "some-digest",
         "--reference",
         "some-reference",
-        "--config",
+        "--config-file",
         f_config_cosign_signer_ok,
     ]
 

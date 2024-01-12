@@ -319,7 +319,7 @@ class CosignSigner(Signer):
 
 def cosign_container_sign(
     signing_key: str = "",
-    config: str = "",
+    config_file: str = "",
     digest: List[str] = [],
     reference: List[str] = [],
 ) -> Dict[str, Any]:
@@ -373,7 +373,7 @@ def cosign_list_existing_signatures(config_file: str, reference: str) -> Tuple[b
     required=True,
     help="signing key used by cosign.",
 )
-@click.option("--config", default=CONFIG_PATHS[0], help="path to the config file")
+@click.option("--config-file", default=CONFIG_PATHS[0], help="path to the config file")
 @click.option(
     "--digest",
     required=True,
@@ -391,7 +391,7 @@ def cosign_list_existing_signatures(config_file: str, reference: str) -> Tuple[b
 @click.option("--raw", default=False, is_flag=True, help="Print raw output instead of json")
 def cosign_container_sign_main(
     signing_key: str = "",
-    config: str = "",
+    config_file: str = "",
     digest: List[str] = [],
     reference: List[str] = [],
     raw: bool = False,
@@ -399,7 +399,7 @@ def cosign_container_sign_main(
     """Entry point method for containersign operation."""
     ret = cosign_container_sign(
         signing_key=signing_key,
-        config=config,
+        config_file=config_file,
         digest=digest,
         reference=reference,
     )
