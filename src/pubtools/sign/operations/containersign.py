@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import field, dataclass
 
-from typing import List, ClassVar
+from typing import List, ClassVar, Any
 
 from ..results.operation_result import OperationResult
 
@@ -30,3 +30,13 @@ class ContainerSignOperation(SignOperation):
             "sample": "repo",
         }
     )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a dict representation of the object."""
+        return dict(
+            digests=self.digests,
+            references=self.references,
+            signing_key=self.signing_key,
+            task_id=self.task_id,
+            repo=self.repo,
+        )

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 
 from dataclasses import dataclass
 from typing import ClassVar, Dict, Any, Type
@@ -34,3 +34,8 @@ class SignOperation(ABC):
         doc_arguments["examples"] = exmaple_arguments_doc
 
         return doc_arguments
+
+    @abstractmethod
+    def to_dict(self) -> dict[str, Any]:
+        """Return a dict representation of the object."""
+        pass  # pragma: no cover

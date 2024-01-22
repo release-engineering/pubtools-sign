@@ -56,3 +56,25 @@ def test_clearsign_operation_doc_argument():
             "repo": "repo",
         },
     }
+
+
+def test_container_sign_to_dict():
+    assert ContainerSignOperation(
+        digests=["digest"],
+        references=["references"],
+        signing_key="sig-key",
+        task_id="task-id",
+        repo="repo",
+    ).to_dict() == dict(
+        digests=["digest"],
+        references=["references"],
+        signing_key="sig-key",
+        task_id="task-id",
+        repo="repo",
+    )
+
+
+def test_clear_sign_to_dict():
+    assert ClearSignOperation(
+        inputs=["input1"], signing_key="sig-key", task_id="task-id", repo="repo"
+    ).to_dict() == dict(inputs=["input1"], signing_key="sig-key", task_id="task-id", repo="repo")

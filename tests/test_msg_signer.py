@@ -33,6 +33,7 @@ def test_msg_container_sign(f_msg_signer, f_config_msg_signer_ok):
     }
     f_msg_signer.return_value.sign.return_value.operation_result.results = []
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(
         msg_container_sign_main,
         [
@@ -59,6 +60,7 @@ def test_msg_container_sign_error(f_msg_signer, f_config_msg_signer_ok):
     }
     f_msg_signer.return_value.sign.return_value.operation_result.results = []
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(
         msg_container_sign_main,
         [
@@ -151,6 +153,7 @@ def test_msg_clearsign_sign(f_msg_signer, f_config_msg_signer_ok):
         ({"i": 456, "msg": {"errors": [], "signed_data": "test"}}, {})
     ]
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(
         msg_clear_sign_main,
         [
@@ -174,6 +177,7 @@ def test_msg_clearsign_sign_error(f_msg_signer, f_config_msg_signer_ok):
     }
     f_msg_signer.return_value.sign.return_value.operation_result.outputs = []
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(
         msg_clear_sign_main,
         [
@@ -271,6 +275,7 @@ def test_msg_clearsign_sign_file_input(f_msg_signer, f_config_msg_signer_ok):
     }
     f_msg_signer.return_value.sign.return_value.operation_result.outputs = []
     f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(
         msg_clear_sign_main,
         [

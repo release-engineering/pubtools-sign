@@ -112,6 +112,7 @@ def test_cosign_container_sign(f_cosign_signer, f_expected_container_sign_args):
     }
     f_cosign_signer.return_value.sign.return_value.operation_result.results = []
     f_cosign_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_cosign_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(cosign_container_sign_main, f_expected_container_sign_args)
     print(result.stdout)
     assert result.exit_code == 0, result.output
@@ -124,6 +125,7 @@ def test_cosign_container_sign_error(f_cosign_signer, f_expected_container_sign_
     }
     f_cosign_signer.return_value.sign.return_value.operation_result.results = []
     f_cosign_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_cosign_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(
         cosign_container_sign_main,
         f_expected_container_sign_args,

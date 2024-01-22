@@ -475,6 +475,7 @@ def msg_clear_sign(
     return {
         "signer_result": signing_result.signer_results.to_dict(),
         "operation_results": cast(ClearSignResult, signing_result.operation_result).outputs,
+        "operation": signing_result.operation.to_dict(),
         "signing_key": signing_result.operation_result.signing_key,
     }
 
@@ -503,6 +504,7 @@ def msg_container_sign(
     return {
         "signer_result": signing_result.signer_results.to_dict(),
         "operation_results": signing_result.operation_result.results,  # type: ignore
+        "operation": signing_result.operation.to_dict(),
         "signing_key": signing_result.operation_result.signing_key,
     }
 
