@@ -1,5 +1,6 @@
 import json
 import logging
+import threading
 from typing import Any, List, Dict, Union
 
 from ..models.msg import MsgError
@@ -44,11 +45,10 @@ class _RecvClient(_MsgClient):
 
     def on_start(self, event: proton.Event) -> None:
         LOG.debug("RECEIVER: On start %s %s %s", event, self.topic, self.broker_urls)
-        self.timer_task = event.container.schedule(self.timeout, self)
-        conn = event.container.connect(
+        self.conn = event.container.connect(
             urls=self.broker_urls, ssl_domain=self.ssl_domain, sasl_enabled=False
         )
-        self.receiver = event.container.create_receiver(conn, self.topic)
+        self.receiver = event.container.create_receiver(self.conn, self.topic)
         self.timer_task = event.container.schedule(self.timeout, self)
 
     def on_message(self, event: proton.Event) -> None:
@@ -84,6 +84,11 @@ class _RecvClient(_MsgClient):
                 description="Out of time when receiving messages",
             )
         )
+
+    def close(self) -> None:
+        self.timer_task.cancel()
+        self.receiver.close()
+        self.conn.close()
 
 
 class RecvClient(Container):
@@ -154,3 +159,24 @@ class RecvClient(Container):
         else:
             return self._errors
         return self.recv
+
+
+class RecvThread(threading.Thread):
+    """Receiver wrapper allows to stop receiver on demand."""
+
+    def __init__(self, recv: RecvClient):
+        """Recv Thread Initializer.
+
+        Args:
+            recv (RecvClient): RecvClient instance
+        """
+        super().__init__()
+        self.recv = recv
+
+    def stop(self) -> None:
+        """Stop receiver."""
+        self.recv.handler.handlers[0].close()
+
+    def run(self) -> None:
+        """Run receiver."""
+        self.recv.run()

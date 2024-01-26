@@ -1,9 +1,9 @@
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 import time
 from threading import Thread
 
 from pubtools.sign.clients.msg_send_client import SendClient, _SendClient
-from pubtools.sign.clients.msg_recv_client import RecvClient, _RecvClient
+from pubtools.sign.clients.msg_recv_client import RecvClient, _RecvClient, RecvThread
 from pubtools.sign.models.msg import MsgMessage
 
 
@@ -321,3 +321,85 @@ def test_recv_client_recv_message_timeout(
         sender.stop()
         tsc.join()
         trc.join()
+
+
+class MockRecv:
+    """Mock receiver class."""
+
+    def __init__(self) -> None:
+        """Initialize mock receiver."""
+        self.closed = False
+        self.timeout = 10
+        handler = Mock()
+        handler.close = self.close
+        self.handler = Mock()
+        self.handler.handlers = [handler]
+
+    def close(self) -> None:
+        """Close receiver handler."""
+        self.closed = True
+
+    def run(self) -> None:
+        """Run interruptible endless loop."""
+        while not self.closed:
+            time.sleep(1)
+            self.timeout -= 1
+            if self.timeout < 1:
+                break
+
+
+def test_recv_thread() -> None:
+    mock_recv = MockRecv()
+    recvt = RecvThread(recv=mock_recv)
+    recvt.start()
+    recvt.stop()
+    assert mock_recv.closed
+    assert mock_recv.timeout > 0
+
+
+def test_recv_client_close(
+    f_qpid_broker,
+    f_msgsigner_listen_to_topic,
+    f_msgsigner_send_to_queue,
+):
+    qpid_broker, port = f_qpid_broker
+    message = MsgMessage(
+        headers={"mtype": "test"},
+        address=f_msgsigner_listen_to_topic,
+        body={"msg": {"message": "test_message", "request_id": "1"}},
+    )
+
+    with patch(
+        "pubtools.sign.clients.msg_recv_client._RecvClient.on_start", autospec=True
+    ) as patched_on_start:
+        patched_on_start.side_effect = lambda self, event: [
+            setattr(self, "timer_task", Mock()),
+            setattr(self, "conn", Mock()),
+            setattr(self, "receiver", Mock()),
+        ]
+
+        sender = SendClient([message], [f"localhost:{port}"], "", "", 10, [])
+        errors = []
+        receiver = RecvClient(
+            f_msgsigner_send_to_queue,
+            ["1"],
+            "request_id",
+            [f"localhost:{port}"],
+            "",
+            "",
+            1.0,
+            2,
+            errors,
+        )
+
+        tsc = Thread(target=sender.run, args=())
+        rcvt = RecvThread(recv=receiver)
+
+        rcvt.start()
+        tsc.start()
+
+        sender.stop()
+        rcvt.stop()
+
+        tsc.join()
+        rcvt.join()
