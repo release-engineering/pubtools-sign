@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: jpetrucciani/bandit-check@main
         with:
-          path: 'src'
+          path: './'
 
   owasp:
     runs-on: ubuntu-latest
