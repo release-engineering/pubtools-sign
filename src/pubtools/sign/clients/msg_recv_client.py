@@ -76,6 +76,7 @@ class _RecvClient(_MsgClient):
             event.connection.close()  # pragma: no cover
         if event.receiver:
             event.receiver.close()  # pragma: no cover
+        event.container.stop()
 
         self.errors.append(
             MsgError(
@@ -86,9 +87,12 @@ class _RecvClient(_MsgClient):
         )
 
     def close(self) -> None:
-        self.timer_task.cancel()
-        self.receiver.close()
-        self.conn.close()
+        if hasattr(self, "timer_task"):
+            self.timer_task.cancel()
+        if hasattr(self, "receiver"):
+            self.receiver.close()
+        if hasattr(self, "conn"):
+            self.conn.close()
 
 
 class RecvClient(Container):
