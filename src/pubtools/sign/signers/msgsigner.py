@@ -441,7 +441,8 @@ class MsgSigner(Signer):
         # wait for receiver to finish
         recvt.join()
 
-        errors = recvc.errors
+        errors = recvc._errors
+        print("ERRORS", errors)
         if errors:
             signer_results.status = "error"
             for error in errors:

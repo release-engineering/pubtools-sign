@@ -632,7 +632,7 @@ def test_container_sign(patched_uuid, f_config_msg_signer_ok, f_client_certifica
                     {"fake": "headers"},
                 )
             }
-            patched_recv_client.return_value.errors = []
+            patched_recv_client.return_value._errors = []
 
             signer = MsgSigner()
             signer.load_config(load_config(f_config_msg_signer_ok))
@@ -684,7 +684,7 @@ def test_container_sign_alias(patched_uuid, f_config_msg_signer_aliases, f_clien
                     {"fake": "headers"},
                 )
             }
-            patched_recv_client.return_value.errors = []
+            patched_recv_client.return_value._errors = []
 
             signer = MsgSigner()
             signer.load_config(load_config(f_config_msg_signer_aliases))
@@ -743,7 +743,7 @@ def test_container_sign_recv_errors(patched_uuid, f_config_msg_signer_ok):
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
         with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
             patched_send_client.return_value.run.return_value = []
-            patched_recv_client.return_value.errors = [
+            patched_recv_client.return_value._errors = [
                 MsgError(
                     name="TestError", description="test error description", source="test-source"
                 )
