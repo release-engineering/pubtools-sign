@@ -329,7 +329,9 @@ class MsgSigner(Signer):
                 signer_results.error_message += f"{error.name} : {error.description}\n"
             return signing_results
 
-        errors = recvc.errors
+        recvt.join()
+
+        errors = recvc._errors
         if errors:
             signer_results.status = "error"
             for error in errors:
@@ -340,7 +342,6 @@ class MsgSigner(Signer):
             signing_key=operation.signing_key, outputs=[""] * len(messages)
         )
 
-        recvt.join()
         for recv_id, received in recvc.recv.items():
             operation_result.outputs[messages.index(message_to_data[recv_id])] = received
         signing_results.operation_result = operation_result
@@ -432,17 +433,16 @@ class MsgSigner(Signer):
             errors=errors,
         ).run()
 
+        # wait for receiver to finish
+        recvt.join()
+
         if errors:
             signer_results.status = "error"
             for error in errors:
                 signer_results.error_message += f"{error.name} : {error.description}\n"
             return signing_results
 
-        # wait for receiver to finish
-        recvt.join()
-
         errors = recvc._errors
-        print("ERRORS", errors)
         if errors:
             signer_results.status = "error"
             for error in errors:

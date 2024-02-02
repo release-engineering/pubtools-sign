@@ -376,6 +376,7 @@ def test_recv_client_close(
             setattr(self, "timer_task", Mock()),
             setattr(self, "conn", Mock()),
             setattr(self, "receiver", Mock()),
+            time.sleep(1),
         ]
 
         sender = SendClient([message], [f"localhost:{port}"], "", "", 10, [])
@@ -397,7 +398,6 @@ def test_recv_client_close(
 
         rcvt.start()
         tsc.start()
-
         sender.stop()
         rcvt.stop()
 

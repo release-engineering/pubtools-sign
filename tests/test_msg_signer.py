@@ -497,7 +497,7 @@ def test_clear_sign(patched_uuid, f_config_msg_signer_ok):
             patched_send_client.return_value.run.return_value = []
             patched_recv_client.return_value.run.return_value = []
             patched_recv_client.return_value.recv = {"1234-5678-abcd-efgh": "signed:'hello world'"}
-            patched_recv_client.return_value.errors = []
+            patched_recv_client.return_value._errors = []
 
             signer = MsgSigner()
             signer.load_config(load_config(f_config_msg_signer_ok))
@@ -524,7 +524,7 @@ def test_clear_sign_aliases(patched_uuid, f_config_msg_signer_aliases):
             patched_send_client.return_value.run.return_value = []
             patched_recv_client.return_value.run.return_value = []
             patched_recv_client.return_value.recv = {"1234-5678-abcd-efgh": "signed:'hello world'"}
-            patched_recv_client.return_value.errors = []
+            patched_recv_client.return_value._errors = []
 
             signer = MsgSigner()
             signer.load_config(load_config(f_config_msg_signer_aliases))
@@ -562,7 +562,7 @@ def test_clear_sign_recv_errors(patched_uuid, f_config_msg_signer_ok):
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
         with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
             patched_send_client.return_value.run.return_value = []
-            patched_recv_client.return_value.errors = [
+            patched_recv_client.return_value._errors = [
                 MsgError(
                     name="TestError", description="test error description", source="test-source"
                 )

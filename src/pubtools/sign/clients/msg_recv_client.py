@@ -180,6 +180,7 @@ class RecvThread(threading.Thread):
     def stop(self) -> None:
         """Stop receiver."""
         self.recv.handler.handlers[0].close()
+        print(self.recv.handler.handlers[0])
 
     def run(self) -> None:
         """Run receiver."""
