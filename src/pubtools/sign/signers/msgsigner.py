@@ -433,14 +433,14 @@ class MsgSigner(Signer):
             errors=errors,
         ).run()
 
-        # wait for receiver to finish
-        recvt.join()
-
         if errors:
             signer_results.status = "error"
             for error in errors:
                 signer_results.error_message += f"{error.name} : {error.description}\n"
             return signing_results
+
+        # wait for receiver to finish
+        recvt.join()
 
         errors = recvc._errors
         if errors:
