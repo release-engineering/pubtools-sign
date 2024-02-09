@@ -400,6 +400,7 @@ def test_recv_client_close(
         tsc.start()
         sender.stop()
         rcvt.stop()
+        time.sleep(1)
 
         tsc.join()
         rcvt.join()
