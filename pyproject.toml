@@ -3,7 +3,7 @@ name = "pubtools-sign"
 description = "Collection of tools producing signed artifacts"
 readme = "README.rst"
 requires-python = ">=3.7"
-version = "0.0.4"
+version = "0.0.5"
 
 classifiers = [  # Optional
   # How mature is this project? Common values are
