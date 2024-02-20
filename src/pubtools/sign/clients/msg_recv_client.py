@@ -134,7 +134,14 @@ class RecvClient(Container):
         self.message_ids = message_ids
         self.recv: Dict[Any, Any] = {}
         self._errors = errors
-        self.handler = _RecvClient(
+        self.topic = topic
+        self.message_ids = message_ids
+        self.id_key = id_key
+        self.broker_urls = broker_urls
+        self.cert = cert
+        self.ca_cert = ca_cert
+        self.timeout = timeout
+        handler = _RecvClient(
             topic=topic,
             message_ids=message_ids,
             id_key=id_key,
@@ -146,7 +153,7 @@ class RecvClient(Container):
             errors=self._errors,
         )
         self._retries = retries
-        super().__init__(self.handler)
+        super().__init__(handler)
 
     def run(self) -> Union[Dict[Any, Any], List[MsgError]]:
         """Run the receiver."""
@@ -160,6 +167,18 @@ class RecvClient(Container):
             if len(self._errors) == errors_len:
                 break
             errors_len = len(self._errors)
+            recv = _RecvClient(
+                topic=self.topic,
+                message_ids=self.message_ids,
+                id_key=self.id_key,
+                broker_urls=self.broker_urls,
+                cert=self.cert,
+                ca_cert=self.ca_cert,
+                timeout=self.timeout,
+                recv=self.recv,
+                errors=self._errors,
+            )
+            super().__init__(recv)
         else:
             return self._errors
         return self.recv
