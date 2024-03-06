@@ -236,7 +236,7 @@ class MsgSigner(Signer):
         x509 = crypto.load_certificate(
             crypto.FILETYPE_PEM, open(os.path.expanduser(self.messaging_cert_key)).read().encode()
         )
-        return x509.get_subject().CN
+        return x509.get_subject().UID
 
     def operations(self: MsgSigner) -> List[Type[SignOperation]]:
         """Return list of supported operations."""
