@@ -6,6 +6,10 @@ from typing import Any, Dict, List, Union
 
 from .conf.conf import CONFIG_PATHS
 
+from pubtools.tracing import get_trace_wrapper
+
+tw = get_trace_wrapper()
+
 
 def set_log_level(logger: logging.Logger, level: str) -> None:
     """Set log level for provided logger.
@@ -42,6 +46,7 @@ def isodate_now() -> str:
     return datetime.datetime.utcnow().isoformat() + "Z"
 
 
+@tw.instrument_func(args_to_attr=True)
 def run_command(cmd: List[str], env: Union[Dict[str, Any], None] = None) -> Any:
     """Run external command and return Process instance."""
     process = subprocess.Popen(
