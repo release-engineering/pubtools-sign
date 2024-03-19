@@ -13,18 +13,12 @@ def test_containersign_operation_doc_argument():
             "task_id": {
                 "description": "Usually pub task id, serves as identifier for in signing request"
             },
-            "repo": {
-                "type": "str",
-                "description": "Repository name",
-                "required": "true",
-            },
         },
         "examples": {
             "digests": "",
             "references": "",
             "signing_key": "",
             "task_id": "",
-            "repo": "repo",
         },
     }
 
@@ -64,13 +58,11 @@ def test_container_sign_to_dict():
         references=["references"],
         signing_key="sig-key",
         task_id="task-id",
-        repo="repo",
     ).to_dict() == dict(
         digests=["digest"],
         references=["references"],
         signing_key="sig-key",
         task_id="task-id",
-        repo="repo",
     )
 
 

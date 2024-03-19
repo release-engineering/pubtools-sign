@@ -18,6 +18,7 @@ class MsgSignerSchema(ma.Schema):
     service = ma.fields.String(required=True)
     timeout = ma.fields.Integer(required=True)
     retries = ma.fields.Integer(required=True)
+    send_retries = ma.fields.Integer(required=True)
     message_id_key = ma.fields.String(required=True)
     log_level = ma.fields.String(default="INFO")
     key_aliases = ma.fields.Dict(required=False, keys=ma.fields.String(), values=ma.fields.String())

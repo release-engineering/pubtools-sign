@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 import threading
@@ -18,6 +19,7 @@ LOG = logging.getLogger("pubtools.sign.client.msg_recv_client")
 class _RecvClient(_MsgClient):
     def __init__(
         self,
+        uid: str,
         topic: str,
         message_ids: List[str],
         id_key: str,
@@ -42,6 +44,10 @@ class _RecvClient(_MsgClient):
         self.confirmed = 0
         self.recv = recv
         self.timeout = timeout
+        self.recv_in_time = False
+        self.uid = uid
+        self.last_message_received = datetime.datetime.now()
+        LOG.info("Expected to receive %s messages", len(message_ids))
 
     def on_start(self, event: proton.Event) -> None:
         LOG.debug("RECEIVER: On start %s %s %s", event, self.topic, self.broker_urls)
@@ -49,7 +55,7 @@ class _RecvClient(_MsgClient):
             urls=self.broker_urls, ssl_domain=self.ssl_domain, sasl_enabled=False
         )
         self.receiver = event.container.create_receiver(self.conn, self.topic)
-        self.timer_task = event.container.schedule(self.timeout, self)
+        self.timer_task = event.container.schedule(self.timeout / 2, self)
 
     def on_message(self, event: proton.Event) -> None:
         LOG.debug("RECEIVER: On message (%s)", event)
@@ -60,6 +66,8 @@ class _RecvClient(_MsgClient):
         if msg_id in self.recv_ids:
             self.recv_ids[msg_id] = True
             self.recv[msg_id] = (outer_message, headers)
+            self.recv_in_time = True
+            self.last_message_received = datetime.datetime.now()
             self.accept(event.delivery)
         else:
             LOG.debug(f"RECEIVER: Ignored message {msg_id}")
@@ -68,9 +76,32 @@ class _RecvClient(_MsgClient):
             self.timer_task.cancel()
             event.receiver.close()
             event.connection.close()
+            event.container.stop()
+            LOG.info("[%d][%s] All messages received", threading.get_ident(), self.uid)
 
     def on_timer_task(self, event: proton.Event) -> None:
-        LOG.debug("RECEIVER: On timeout (%s)", event)
+        if self.recv_in_time:
+            LOG.info(
+                "[%d][%s] RECEIVER: On timeout but messages was received - continue, received: %d/%d",
+                threading.get_ident(),
+                self.uid,
+                len([x for x in self.recv_ids.values() if x]),
+                len(self.recv_ids),
+            )
+            self.recv_in_time = False
+            self.timer_task = event.reactor.schedule(self.timeout / 2, self)
+            return
+        if (datetime.datetime.now() - self.last_message_received).total_seconds() < self.timeout:
+            self.timer_task = event.reactor.schedule(self.timeout / 2, self)
+            return
+        LOG.info(
+            "[%d][%s] RECEIVER: On timeout (%s) messages: %d/%d",
+            threading.get_ident(),
+            event,
+            self.uid,
+            len([x for x in self.recv_ids.values() if x]),
+            len(self.recv_ids),
+        )
         self.timer_task.cancel()
         if event.connection:
             event.connection.close()  # pragma: no cover
@@ -78,13 +109,19 @@ class _RecvClient(_MsgClient):
             event.receiver.close()  # pragma: no cover
         event.container.stop()
 
-        self.errors.append(
-            MsgError(
-                source=event,
-                name="MessagingTimeout",
-                description="Out of time when receiving messages",
+        if not all(self.recv_ids.values()):
+            self.errors.append(
+                MsgError(
+                    source=event,
+                    name="MessagingTimeout",
+                    description="[%d] Out of time when receiving messages (%d/%d)"
+                    % (
+                        threading.get_ident(),
+                        len([x for x in self.recv_ids.values() if x]),
+                        len(self.recv_ids),
+                    ),
+                )
             )
-        )
 
     def close(self) -> None:
         if hasattr(self, "timer_task"):
@@ -100,6 +137,7 @@ class RecvClient(Container):
 
     def __init__(
         self,
+        uid: str,
         topic: str,
         message_ids: List[str],
         id_key: str,
@@ -109,6 +147,7 @@ class RecvClient(Container):
         timeout: int,
         retries: int,
         errors: List[MsgError],
+        received: Dict[Any, Any],
     ) -> None:
         """Recv Client Initializer.
 
@@ -130,9 +169,11 @@ class RecvClient(Container):
         :type retries: int
         :param errors: List of errors which occured during the process
         :type errors: List[MsgError]
+        :param received: Mapping of received messages
+        :type errors: Dict[int, Any]
         """
         self.message_ids = message_ids
-        self.recv: Dict[Any, Any] = {}
+        self.recv: Dict[Any, Any] = received
         self._errors = errors
         self.topic = topic
         self.message_ids = message_ids
@@ -141,7 +182,9 @@ class RecvClient(Container):
         self.cert = cert
         self.ca_cert = ca_cert
         self.timeout = timeout
+        self.uid = uid
         handler = _RecvClient(
+            uid=uid,
             topic=topic,
             message_ids=message_ids,
             id_key=id_key,
@@ -162,14 +205,25 @@ class RecvClient(Container):
             LOG.warning("No messages to receive")
             return []
 
+        message_ids = self.message_ids[:]
         for x in range(self._retries):
             super().run()
             if len(self._errors) == errors_len:
                 break
             errors_len = len(self._errors)
+            if (
+                self._errors
+                and self._errors[0].name == "MessagingTimeout"
+                and x + 1 < self._retries
+            ):
+                self._errors.pop(0)
+            message_ids = [x for x in message_ids if not self.recv.get(x)]
+            if not message_ids:
+                break
             recv = _RecvClient(
+                uid=self.uid + "-" + str(x),
                 topic=self.topic,
-                message_ids=self.message_ids,
+                message_ids=message_ids,
                 id_key=self.id_key,
                 broker_urls=self.broker_urls,
                 cert=self.cert,

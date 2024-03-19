@@ -17,7 +17,9 @@ def test_recv_client_zero_messages(
 ):
     qpid_broker, port = f_qpid_broker
     errors = []
+    received = {}
     rc = RecvClient(
+        "uid-1",
         f_msgsigner_send_to_queue,
         [],
         [f"localhost:{port}"],
@@ -27,6 +29,7 @@ def test_recv_client_zero_messages(
         1.0,
         1,
         errors,
+        received,
     )
     rc.run()
     msgsigner, _, received_messages = f_fake_msgsigner
@@ -49,7 +52,9 @@ def test_recv_client_recv_message(
 
     sender = SendClient([message], [f"localhost:{port}"], "", "", 10, [])
     errors = []
+    received = {}
     receiver = RecvClient(
+        "uid-1",
         f_msgsigner_send_to_queue,
         ["1"],
         "request_id",
@@ -59,6 +64,7 @@ def test_recv_client_recv_message(
         60.0,
         2,
         errors,
+        received,
     )
 
     tsc = Thread(target=sender.run, args=())
@@ -93,8 +99,10 @@ def test_recv_client_timeout(
         body={"msg": {"message": "test_message", "request_id": "1"}},
     )
     errors = []
+    received = {}
     sender = SendClient([message], [f"localhost:{port}"], "", "", 10, [])
     receiver = RecvClient(
+        "uid-1",
         f_msgsigner_send_to_queue + "_wrong",
         ["1"],
         "request_id",
@@ -104,6 +112,7 @@ def test_recv_client_timeout(
         10.0,
         1,
         errors,
+        received,
     )
 
     tsc = Thread(target=sender.run, args=())
@@ -126,7 +135,9 @@ def test_recv_client_transport_error(
 ):
     qpid_broker, port = f_qpid_broker
     errors = []
+    received = {}
     receiver = RecvClient(
+        "uid-1",
         f_msgsigner_send_to_queue,
         ["1"],
         "request_id",
@@ -136,6 +147,7 @@ def test_recv_client_transport_error(
         10.0,
         1,
         errors,
+        received,
     )
 
     trc = Thread(target=receiver.run, args=())
@@ -161,7 +173,9 @@ def test_recv_client_link_error(
     )
     sender = SendClient([message], [f"localhostx:{port}"], "", "", 10, [])
     errors = []
+    received = {}
     receiver = RecvClient(
+        "uid-1",
         f_msgsigner_send_to_queue,
         ["1"],
         "request_id",
@@ -171,6 +185,7 @@ def test_recv_client_link_error(
         10.0,
         1,
         errors,
+        received,
     )
 
     tsc = Thread(target=sender.run, args=())
@@ -195,8 +210,60 @@ def test_recv_client_errors(
         address=f_msgsigner_listen_to_topic,
         body={"msg": {"message": "test_message", "request_id": "1"}},
     )
-    sender = SendClient([message], [f"localhostx:{port}"], "", "", 10, [])
+    sender = SendClient([message], [f"localhost:{port}"], "", "", 10, [])
     errors = []
+    received = {}
+
+    print(id(errors))
+    on_message_original = _RecvClient.on_message
+    with patch(
+        "pubtools.sign.clients.msg_recv_client._RecvClient.on_message", autospec=True
+    ) as patched_on_message:
+        patched_on_message.side_effect = lambda self, event: [
+            self.errors.append("1"),
+            on_message_original(self, event),
+        ]
+
+        receiver = RecvClient(
+            "uid-1",
+            f_msgsigner_send_to_queue,
+            ["1"],
+            "request_id",
+            [f"localhost:{port}"],
+            "",
+            "",
+            10.0,
+            1,
+            errors,
+            received,
+        )
+
+        tsc = Thread(target=sender.run, args=())
+        trc = Thread(target=receiver.run, args=())
+
+        trc.start()
+        tsc.start()
+        # time.sleep(1)
+        trc.join()
+        assert len(errors) == 1
+
+
+def test_recv_client_errors(
+    f_cleanup_msgsigner_messages,
+    f_qpid_broker,
+    f_msgsigner_listen_to_topic,
+    f_fake_msgsigner,
+    f_msgsigner_send_to_queue,
+):
+    qpid_broker, port = f_qpid_broker
+    message = MsgMessage(
+        headers={"mtype": "test"},
+        address=f_msgsigner_listen_to_topic,
+        body={"msg": {"message": "test_message", "request_id": "1"}},
+    )
+    sender = SendClient([message], [f"localhost:{port}"], "", "", 10, [])
+    errors = []
+    received = {}
 
     on_message_original = _RecvClient.on_message
     with patch(
@@ -208,24 +275,88 @@ def test_recv_client_errors(
         ]
 
         receiver = RecvClient(
+            "uid-1",
             f_msgsigner_send_to_queue,
             ["1"],
             "request_id",
             [f"localhost:{port}"],
             "",
             "",
-            10.0,
+            2,
             1,
             errors,
+            received,
         )
 
         tsc = Thread(target=sender.run, args=())
         trc = Thread(target=receiver.run, args=())
 
+        on_sendable_original = _SendClient.on_sendable
+        with patch(
+            "pubtools.sign.clients.msg_send_client._SendClient.on_sendable", autospec=True
+        ) as patched_on_sendable:
+            patched_on_sendable.side_effect = lambda self, event: [
+                time.sleep(1),
+                on_sendable_original(self, event),
+            ]
+            trc.start()
+            tsc.start()
+            # time.sleep(1)
+            trc.join()
+            assert len(errors) == 1
+
+
+def test_recv_client_timeout_recv_in_time(
+    f_cleanup_msgsigner_messages,
+    f_qpid_broker,
+    f_msgsigner_listen_to_topic,
+    f_fake_msgsigner,
+    f_msgsigner_send_to_queue,
+):
+    qpid_broker, port = f_qpid_broker
+    print("PORT", port)
+    message = MsgMessage(
+        headers={"mtype": "test"},
+        address=f_msgsigner_listen_to_topic,
+        body={"msg": {"message": "test_message", "request_id": "1"}},
+    )
+    sender = SendClient([message], [f"localhost:{port}"], "", "", 10, [])
+    errors = []
+    received = {}
+
+    print(id(errors))
+    on_message_original = _RecvClient.on_message
+    receiver = RecvClient(
+        "uid-1",
+        f_msgsigner_send_to_queue,
+        ["1"],
+        "request_id",
+        [f"localhost:{port}"],
+        "",
+        "",
+        2,
+        1,
+        errors,
+        received,
+    )
+
+    tsc = Thread(target=sender.run, args=())
+    trc = Thread(target=receiver.run, args=())
+
+    on_sendable_original = _SendClient.on_sendable
+    with patch(
+        "pubtools.sign.clients.msg_send_client._SendClient.on_sendable", autospec=True
+    ) as patched_on_sendable:
+        patched_on_sendable.side_effect = lambda self, event: [
+            on_sendable_original(self, event),
+            time.sleep(1),
+        ]
         trc.start()
         tsc.start()
-        time.sleep(1)
+        # time.sleep(1)
+        trc.join()
         assert len(errors) == 1
+    # assert False
 
 
 def test_recv_client_recv_message_stray(
@@ -244,7 +375,9 @@ def test_recv_client_recv_message_stray(
 
     sender = SendClient([message], [f"localhost:{port}"], "", "", 10, [])
     errors = []
+    received = {}
     receiver = RecvClient(
+        "uid-1",
         f_msgsigner_send_to_queue_stray,
         ["1"],
         "request_id",
@@ -254,6 +387,7 @@ def test_recv_client_recv_message_stray(
         60.0,
         2,
         errors,
+        received,
     )
 
     tsc = Thread(target=sender.run, args=())
@@ -297,7 +431,9 @@ def test_recv_client_recv_message_timeout(
 
         sender = SendClient([message], [f"localhost:{port}"], "", "", 10, [])
         errors = []
+        received = {}
         receiver = RecvClient(
+            "uid-1",
             f_msgsigner_send_to_queue,
             ["1"],
             "request_id",
@@ -307,6 +443,7 @@ def test_recv_client_recv_message_timeout(
             1.0,
             2,
             errors,
+            received,
         )
 
         tsc = Thread(target=sender.run, args=())
@@ -381,7 +518,9 @@ def test_recv_client_close(
 
         sender = SendClient([message], [f"localhost:{port}"], "", "", 10, [])
         errors = []
+        received = {}
         receiver = RecvClient(
+            "uid-1",
             f_msgsigner_send_to_queue,
             ["1"],
             "request_id",
@@ -391,6 +530,7 @@ def test_recv_client_close(
             1.0,
             2,
             errors,
+            received,
         )
 
         tsc = Thread(target=sender.run, args=())

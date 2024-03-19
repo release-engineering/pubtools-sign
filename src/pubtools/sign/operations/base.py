@@ -15,7 +15,6 @@ class SignOperation(ABC):
 
     ResultType: ClassVar[OperationResult]
     signing_key: str
-    repo: str
 
     @classmethod
     def doc_arguments(cls: Type[Self]) -> Dict[str, Any]:

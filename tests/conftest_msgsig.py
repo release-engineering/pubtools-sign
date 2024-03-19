@@ -27,6 +27,7 @@ msg_signer:
   service: pubtools-sign
   timeout: 1
   retries: 3
+  send_retries: 2
   message_id_key: request_id
   log_level: debug
         """.encode(
@@ -54,6 +55,7 @@ msg_signer:
   service: pubtools-sign
   timeout: 1
   retries: 3
+  send_retries: 2
   message_id_key: request_id
   log_level: debug
   key_aliases:

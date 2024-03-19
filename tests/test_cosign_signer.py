@@ -176,7 +176,6 @@ def test_sign(f_config_cosign_signer_ok):
         references=("some-reference",),
         signing_key="test-signing-key",
         task_id="",
-        repo="r",
     )
     with patch(
         "pubtools.sign.signers.cosignsigner.CosignSigner.container_sign"
@@ -193,7 +192,6 @@ def test_container_sign(f_config_cosign_signer_ok, f_environ, f_expected_cosign_
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag"],
         signing_key="test-signing-key",
-        repo="",
     )
 
     with patch("subprocess.Popen") as patched_popen:
@@ -232,7 +230,6 @@ def test_container_sign_alias(f_config_cosign_signer_aliases, f_environ):
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag"],
         signing_key="beta",
-        repo="",
     )
 
     with patch("subprocess.Popen") as patched_popen:
@@ -287,7 +284,6 @@ def test_container_sign_error(f_config_cosign_signer_ok, f_environ, f_expected_c
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag"],
         signing_key="test-signing-key",
-        repo="",
     )
 
     with patch("subprocess.Popen") as patched_popen:
@@ -328,7 +324,6 @@ def test_container_sign_digests_only(
         digests=["some-registry/namespace/repo@sha256:abcdefg"],
         references=[],
         signing_key="test-signing-key",
-        repo="",
     )
 
     with patch("subprocess.Popen") as patched_popen:
@@ -385,7 +380,6 @@ def test_container_sign_mismatch_refs(f_config_cosign_signer_ok):
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag1", "some-registry/namespace/repo:tag2"],
         signing_key="test-signing-key",
-        repo="",
     )
 
     with patch("subprocess.Popen") as patched_popen:

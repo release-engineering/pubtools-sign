@@ -342,7 +342,6 @@ def cosign_container_sign(
         references=reference,
         signing_key=signing_key,
         task_id="",
-        repo="",
     )
     signing_result = cosign_signer.sign(operation)
     return {

@@ -16,6 +16,7 @@ def test_load_config_radas_ok(f_config_msg_signer_ok, f_client_certificate):
             "service": "pubtools-sign",
             "timeout": 1,
             "retries": 3,
+            "send_retries": 2,
             "message_id_key": "request_id",
             "log_level": "debug",
         }

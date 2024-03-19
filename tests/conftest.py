@@ -7,6 +7,8 @@ import threading
 import tempfile
 import uuid
 import os
+import sys
+
 from unittest.mock import patch
 
 from .conftest_msgsig import (  # noqa: F401
@@ -33,6 +35,7 @@ from pubtools.sign.clients.msg import _MsgClient
 
 
 LOG = logging.getLogger("pubtools.sign.signers.radas")
+LOG.addHandler(logging.StreamHandler(sys.stdout))
 
 
 class _Queue(object):
@@ -87,7 +90,8 @@ class _Broker(_MsgClient):
         self.queues = {}
 
     def on_start(self, event):
-        LOG.debug("BROKER on start", self.url)
+        print("BROKER on start", self.url)
+        LOG.info("BROKER on start", self.url)
         self.acceptor = event.container.listen(self.url)
 
     def _queue(self, address):
@@ -96,7 +100,19 @@ class _Broker(_MsgClient):
         return self.queues[address]
 
     def on_link_opening(self, event):
-        LOG.debug(
+        LOG.info(
+            "BROKER on_link_opening event",
+            event.link,
+            "source addr:",
+            event.link.source.address,
+            "remote source addr",
+            event.link.remote_source.address,
+            "target addr:",
+            event.link.target.address,
+            "remote target addr",
+            event.link.remote_target.address,
+        )
+        print(
             "BROKER on_link_opening event",
             event.link,
             "source addr:",
@@ -128,28 +144,28 @@ class _Broker(_MsgClient):
             del self.queues[link.source.address]
 
     def on_link_closing(self, event):
-        LOG.debug(">> BROKER On link closing", event)
+        LOG.info(">> BROKER On link closing", event)
         if event.link.is_sender:
             self._unsubscribe(event.link)
 
     def on_disconnected(self, event):
-        LOG.debug(">> BROKER On disconnected", event)
+        LOG.info(">> BROKER On disconnected", event)
         self.remove_stale_consumers(event.connection)
 
     def remove_stale_consumers(self, connection):
         link = connection.link_head(Endpoint.REMOTE_ACTIVE)
-        LOG.debug("BROKER removing stale consumer", link)
+        LOG.info("BROKER removing stale consumer", link)
         while link:
             if link.is_sender:
                 self._unsubscribe(link)
             link = link.next(Endpoint.REMOTE_ACTIVE)
 
     def on_sendable(self, event):
-        LOG.debug("BROKER on_sendable", event.link.source.address)
+        LOG.info("BROKER on_sendable", event.link.source.address)
         self._queue(event.link.source.address).dispatch(event.link)
 
     def on_message(self, event):
-        LOG.debug("BROKER ON MESSAGE", event.message)
+        LOG.info("BROKER ON MESSAGE", event.message)
         address = event.link.target.address
         if address is None:
             address = event.message.address
@@ -159,7 +175,7 @@ class _Broker(_MsgClient):
 
 class _BrokenBroker(_Broker):
     def on_sendable(self, event):
-        LOG.debug("BROKER on_sendable", event.link.source.address)
+        LOG.info("BROKER on_sendable", event.link.source.address)
         self._queue(event.link.source.address).dispatch(event.link)
         raise ValueError("Simulated broker error")
         event.on_link_error(event)
@@ -237,6 +253,11 @@ class _StrayFakeMsgSigner(_FakeMsgSigner):
         sender.send(reply)
 
 
+def run_broker(broker, stdout):
+    sys.stdout = stdout
+    broker.run()
+
+
 @fixture(scope="session")
 def f_msgsigner_listen_to_topic():
     return "topic://Topic.pubtools.sign"
@@ -287,12 +308,12 @@ def f_find_available_port_for_broken():
 
 @fixture(scope="session")
 def f_qpid_broker(f_find_available_port):
-    LOG.debug("starting broker", f"localhost:{f_find_available_port}")
+    LOG.info("starting broker", f"localhost:{f_find_available_port}")
     broker = Container(_Broker(f"localhost:{f_find_available_port}"))
-    p = Process(target=broker.run, args=())
+    p = Process(target=run_broker, args=(broker, sys.stdout))
     p.start()
     yield (broker, f_find_available_port)
-    LOG.debug("destroying qpid broker")
+    LOG.info("destroying qpid broker")
     p.terminate()
 
 

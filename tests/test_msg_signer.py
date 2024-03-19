@@ -400,7 +400,7 @@ def test_create_msg_message(f_config_msg_signer_ok):
                 inputs=["test-data-inputs"], signing_key="test-key", task_id="1", repo="repo"
             )
             assert signer._create_msg_message(
-                data, operation, SignRequestType.CONTAINER
+                data, "repo", operation, SignRequestType.CONTAINER
             ) == MsgMessage(
                 headers={
                     "service": "pubtools-sign",
@@ -420,7 +420,7 @@ def test_create_msg_message(f_config_msg_signer_ok):
                 },
             )
             assert signer._create_msg_message(
-                data, operation, SignRequestType.CLEARSIGN
+                data, "repo", operation, SignRequestType.CLEARSIGN
             ) == MsgMessage(
                 headers={
                     "service": "pubtools-sign",
@@ -449,7 +449,6 @@ def test_sign(f_config_msg_signer_ok):
         references=("some-reference",),
         signing_key="test-signing-key",
         task_id="1",
-        repo="repo",
     )
     clear_sign_operation = ClearSignOperation(
         inputs=["hello world"], signing_key="test-signing-key", task_id="1", repo="repo"
@@ -538,7 +537,7 @@ def test_clear_sign_aliases(patched_uuid, f_config_msg_signer_aliases):
                 patch_construct_signing_message.assert_called_once_with(
                     "aGVsbG8gd29ybGQ=",
                     "abcde1245",
-                    repo="repo",
+                    "repo",
                     extra_attrs={"pub_task_id": "1"},
                     sig_type="clearsign_signature",
                 )
@@ -619,7 +618,6 @@ def test_container_sign(patched_uuid, f_config_msg_signer_ok, f_client_certifica
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag"],
         signing_key="test-signing-key",
-        repo="repo",
     )
 
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
@@ -671,7 +669,6 @@ def test_container_sign_alias(patched_uuid, f_config_msg_signer_aliases, f_clien
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag"],
         signing_key="beta",
-        repo="repo",
     )
 
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
@@ -699,7 +696,7 @@ def test_container_sign_alias(patched_uuid, f_config_msg_signer_aliases, f_clien
                 patch_construct_signing_message.assert_called_once_with(
                     ANY,
                     "abcde1245",
-                    repo="repo",
+                    "namespace/repo",
                     extra_attrs={"pub_task_id": "1", "manifest_digest": "sha256:abcdefg"},
                     sig_type="container_signature",
                 )
@@ -737,7 +734,6 @@ def test_container_sign_recv_errors(patched_uuid, f_config_msg_signer_ok):
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag"],
         signing_key="test-signing-key",
-        repo="repo",
     )
 
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
@@ -773,7 +769,6 @@ def test_container_sign_send_errors(patched_uuid, f_config_msg_signer_ok):
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag"],
         signing_key="test-signing-key",
-        repo="repo",
     )
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
         with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
@@ -808,13 +803,170 @@ def test_container_sign_wrong_inputs(patched_uuid, f_config_msg_signer_ok):
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag", "some-registry/namespace/repo:tag2"],
         signing_key="test-signing-key",
-        repo="repo",
     )
 
     signer = MsgSigner()
     signer.load_config(load_config(f_config_msg_signer_ok))
     with pytest.raises(ValueError):
         signer.container_sign(container_sign_operation)
+
+
+@patch("uuid.uuid4", return_value="1234-5678-abcd-efgh")
+def test_container_sign_recv_timeout_fails(patched_uuid, f_config_msg_signer_ok):
+    container_sign_operation = ContainerSignOperation(
+        task_id="1",
+        digests=["sha256:abcdefg"],
+        references=["some-registry/namespace/repo:tag"],
+        signing_key="test-signing-key",
+    )
+
+    with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
+        with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
+            patched_send_client.return_value.run.return_value = []
+            patched_recv_client.return_value._errors = [
+                MsgError(
+                    name="MessagingTimeout",
+                    description="Out of time when receiving messages",
+                    source="test-source",
+                ),
+                MsgError(
+                    name="MessagingTimeout",
+                    description="Out of time when receiving messages",
+                    source="test-source",
+                ),
+                MsgError(
+                    name="MessagingTimeout",
+                    description="Out of time when receiving messages",
+                    source="test-source",
+                ),
+            ]
+            patched_recv_client.return_value.recv = {
+                "1234-5678-abcd-efgh": (
+                    {"msg": {"errors": [], "signed_claim": "signed:'claim'"}},
+                    {"fake": "headers"},
+                )
+            }
+
+            signer = MsgSigner()
+            signer.retries = 2
+            signer.send_retries = 1
+
+            signer.load_config(load_config(f_config_msg_signer_ok))
+            res = signer.container_sign(container_sign_operation)
+
+            assert res == SigningResults(
+                signer=signer,
+                operation=container_sign_operation,
+                signer_results=MsgSignerResults(
+                    status="error",
+                    error_message="MessagingTimeout : Out of time when receiving messages\n",
+                ),
+                operation_result=ContainerSignResult(
+                    results=[""], signing_key="test-signing-key", failed=False
+                ),
+            )
+
+
+@patch("uuid.uuid4", return_value="1234-5678-abcd-efgh")
+def test_container_sign_recv_timeout_ok(patched_uuid, f_config_msg_signer_ok):
+    container_sign_operation = ContainerSignOperation(
+        task_id="1",
+        digests=["sha256:abcdefg"],
+        references=["some-registry/namespace/repo:tag"],
+        signing_key="test-signing-key",
+    )
+
+    with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
+        with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
+            patched_send_client.return_value.run.return_value = []
+            patched_recv_client.return_value._errors = [
+                MsgError(
+                    name="MessagingTimeout",
+                    description="Out of time when receiving messages",
+                    source="test-source",
+                ),
+                MsgError(
+                    name="MessagingTimeout",
+                    description="Out of time when receiving messages",
+                    source="test-source",
+                ),
+            ]
+            patched_recv_client.return_value.recv = {
+                "1234-5678-abcd-efgh": (
+                    {"msg": {"errors": [], "signed_claim": "signed:'claim'"}},
+                    {"fake": "headers"},
+                )
+            }
+
+            signer = MsgSigner()
+            signer.retries = 2
+            signer.send_retries = 1
+
+            signer.load_config(load_config(f_config_msg_signer_ok))
+            res = signer.container_sign(container_sign_operation)
+
+            assert res == SigningResults(
+                signer=signer,
+                operation=container_sign_operation,
+                signer_results=MsgSignerResults(
+                    status="ok",
+                    error_message="",
+                ),
+                operation_result=ContainerSignResult(
+                    results=[
+                        (
+                            {"msg": {"errors": [], "signed_claim": "signed:'claim'"}},
+                            {"fake": "headers"},
+                        )
+                    ],
+                    signing_key="test-signing-key",
+                    failed=False,
+                ),
+            )
+
+
+@patch("uuid.uuid4", return_value="1234-5678-abcd-efgh")
+def test_clear_sign_recv_timeout(patched_uuid, f_config_msg_signer_ok):
+    clear_sign_operation = ClearSignOperation(
+        inputs=["hello world"], signing_key="test-signing-key", task_id="1", repo="repo"
+    )
+
+    with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
+        with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
+            patched_send_client.return_value.run.return_value = []
+            patched_recv_client.return_value._errors = [
+                MsgError(
+                    name="MessagingTimeout",
+                    description="Out of time when receiving messages",
+                    source="test-source",
+                ),
+                MsgError(
+                    name="MessagingTimeout",
+                    description="Out of time when receiving messages",
+                    source="test-source",
+                ),
+                MsgError(
+                    name="MessagingTimeout",
+                    description="Out of time when receiving messages",
+                    source="test-source",
+                ),
+            ]
+            patched_recv_client.return_value.recv = {"1234-5678-abcd-efgh": "signed:'hello world'"}
+
+            signer = MsgSigner()
+            signer.load_config(load_config(f_config_msg_signer_ok))
+            res = signer.clear_sign(clear_sign_operation)
+
+            assert res == SigningResults(
+                signer=signer,
+                operation=clear_sign_operation,
+                signer_results=MsgSignerResults(
+                    status="error",
+                    error_message="MessagingTimeout : Out of time when receiving messages\n"
+                    "MessagingTimeout : Out of time when receiving messages\n",
+                ),
+                operation_result=ClearSignResult(outputs=[""], signing_key="test-signing-key"),
+            )
 
 
 def test_msgsig_doc_arguments():
@@ -830,8 +982,9 @@ def test_msgsig_doc_arguments():
             "creator": {"description": "Identification of creator of signing request"},
             "environment": {"description": "Environment indetification in sent messages"},
             "service": {"description": "Service identificator"},
-            "timeout": {"description": "Timeout for messaging sent/receive"},
-            "retries": {"description": "Retries for messaging sent/receive"},
+            "timeout": {"description": "Timeout for messaging receive"},
+            "retries": {"description": "Retries for messaging receive"},
+            "send_retries": {"description": "Retries for messaging send+receive"},
             "message_id_key": {
                 "description": "Attribute name in message body which should be used as message id"
             },
@@ -851,6 +1004,7 @@ def test_msgsig_doc_arguments():
                 "service": "pubtools-sign",
                 "timeout": 1,
                 "retries": 3,
+                "send_retries": 2,
                 "message_id_key": "123",
                 "log_level": "debug",
                 "key_aliases": "{'production':'abcde1245'}",
