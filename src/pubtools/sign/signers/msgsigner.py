@@ -345,6 +345,7 @@ class MsgSigner(Signer):
 
             # wait for receiver to finish
             recvt.join()
+            recvt.stop()
 
             # check receiver errors
             errors = recvc._errors
@@ -481,6 +482,7 @@ class MsgSigner(Signer):
 
             # wait for receiver to finish
             recvt.join()
+            recvt.stop()
 
             # check receiver errors
             errors = recvc._errors

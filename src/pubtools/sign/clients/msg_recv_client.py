@@ -183,7 +183,8 @@ class RecvClient(Container):
         self.ca_cert = ca_cert
         self.timeout = timeout
         self.uid = uid
-        handler = _RecvClient(
+        self._retries = retries
+        self.handler = _RecvClient(
             uid=uid,
             topic=topic,
             message_ids=message_ids,
@@ -195,8 +196,7 @@ class RecvClient(Container):
             recv=self.recv,
             errors=self._errors,
         )
-        self._retries = retries
-        super().__init__(handler)
+        super().__init__(self.handler)
 
     def run(self) -> Union[Dict[Any, Any], List[MsgError]]:
         """Run the receiver."""
@@ -220,7 +220,7 @@ class RecvClient(Container):
             message_ids = [x for x in message_ids if not self.recv.get(x)]
             if not message_ids:
                 break
-            recv = _RecvClient(
+            self.handler = _RecvClient(
                 uid=self.uid + "-" + str(x),
                 topic=self.topic,
                 message_ids=message_ids,
@@ -232,7 +232,7 @@ class RecvClient(Container):
                 recv=self.recv,
                 errors=self._errors,
             )
-            super().__init__(recv)
+            super().__init__(self.handler)
         else:
             return self._errors
         return self.recv
@@ -252,7 +252,7 @@ class RecvThread(threading.Thread):
 
     def stop(self) -> None:
         """Stop receiver."""
-        self.recv.handler.handlers[0].close()
+        self.recv.stop()
 
     def run(self) -> None:
         """Run receiver."""
