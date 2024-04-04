@@ -26,7 +26,14 @@ from ..clients.msg_send_client import SendClient
 from ..clients.msg_recv_client import RecvClient, RecvThread
 from ..models.msg import MsgMessage, MsgError
 from ..conf.conf import load_config, CONFIG_PATHS
-from ..utils import set_log_level, sanitize_log_level, isodate_now, _get_config_file
+from ..utils import (
+    set_log_level,
+    sanitize_log_level,
+    isodate_now,
+    _get_config_file,
+    run_in_parallel,
+    FData,
+)
 
 
 LOG = logging.getLogger("pubtools.sign.signers.msgsigner")
@@ -306,6 +313,7 @@ class MsgSigner(Signer):
         )
         errors: List[MsgError] = []
         received: Dict[int, Any] = {}
+        LOG.info("errors " + str(errors))
 
         for i in range(self.send_retries):
             message_ids = [message.body["request_id"] for message in messages]
@@ -414,19 +422,33 @@ class MsgSigner(Signer):
             signing_key = self.key_aliases[signing_key]
             LOG.info(f"Using signing key alias {signing_key} for {operation.signing_key}")
 
+        LOG.info(f"Container sign operation for {len(operation.digests)}")
+
+        fargs = []
         for digest, reference in zip(operation.digests, operation.references):
             repo = reference.split(":")[0].split("/", 1)[1].split(":")[0]
-            message = self._create_msg_message(
-                self.create_manifest_claim_message(signing_key, digest=digest, reference=reference),
-                repo,
-                operation,
-                SignRequestType.CONTAINER,
-                extra_attrs={"pub_task_id": operation.task_id, "manifest_digest": digest},
+            fargs.append(
+                FData(
+                    args=[
+                        self.create_manifest_claim_message(
+                            signing_key, digest=digest, reference=reference
+                        ),
+                        repo,
+                        operation,
+                        SignRequestType.CONTAINER,
+                    ],
+                    kwargs={
+                        "extra_attrs": {"pub_task_id": operation.task_id, "manifest_digest": digest}
+                    },
+                )
             )
+        ret = run_in_parallel(self._create_msg_message, fargs)
+        for n, message in ret.items():
             message_to_data[message.body["request_id"]] = message
             messages.append(message)
 
         all_messages = [x for x in messages]
+        LOG.info(f"Signing {len(all_messages)}")
 
         signer_results = MsgSignerResults(status="ok", error_message="")
         operation_result = ContainerSignResult(
@@ -474,6 +496,7 @@ class MsgSigner(Signer):
             ).run()
 
             # check sender errors
+            LOG.info("errors %s", errors)
             if errors:
                 signer_results.status = "error"
                 for error in errors:
@@ -501,8 +524,8 @@ class MsgSigner(Signer):
                     i,
                     self.retries,
                 )
-                if not len(messages):
-                    break
+                # if not len(messages):
+                #     break
 
             elif not errors:
                 break

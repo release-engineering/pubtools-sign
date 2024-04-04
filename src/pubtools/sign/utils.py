@@ -1,8 +1,11 @@
+from concurrent import futures
+from concurrent.futures.thread import ThreadPoolExecutor
+from dataclasses import dataclass, field
 import datetime
 import subprocess
 import os
 import logging
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Callable, cast, Iterable
 
 from .conf.conf import CONFIG_PATHS
 
@@ -60,3 +63,41 @@ def _get_config_file(config_candidate: str) -> str:
                 "No configuration file found: %s" % list(set(CONFIG_PATHS + [config_candidate]))
             )
     return config_candidate
+
+
+@dataclass
+class FData:
+    """Dataclass for holding data for a function execution.
+
+    Args:
+        args (Iterable[Any]): Arguments for the function.
+        kwargs (Dict[str, Any]): Keyword arguments for the function.
+    """
+
+    args: Iterable[Any]
+    kwargs: Dict[str, Any] = field(default_factory=dict)
+
+
+def run_in_parallel(
+    func: Callable[..., Any], data: List[FData], threads: int = 10
+) -> Dict[Any, Any]:
+    """Run method on data in parallel.
+
+    Args:
+        func (function): Function to run on data
+        data (list): List of tuples which are used as arguments for the function
+    Returns:
+        dict: List of result in the same order as data.
+    """
+    future_results = {}
+    results = {}
+    with ThreadPoolExecutor(max_workers=threads) as executor:
+        future_results = {
+            executor.submit(func, *data_entry.args, **data_entry.kwargs): n
+            for n, data_entry in enumerate(data)
+        }
+        for future in futures.as_completed(future_results):
+            if future.exception() is not None:
+                raise cast(BaseException, future.exception())
+            results[future_results[future]] = future.result()
+    return dict(sorted(results.items(), key=lambda kv: kv[0]))

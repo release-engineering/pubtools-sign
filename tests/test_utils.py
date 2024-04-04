@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from pubtools.sign.utils import set_log_level, sanitize_log_level
+from pubtools.sign.utils import set_log_level, sanitize_log_level, run_in_parallel, FData
 
 
 def test_set_log_level():
@@ -28,3 +28,12 @@ def test_sanitize_log_level():
     assert sanitize_log_level("UNKNOWN") == "INFO"
     assert sanitize_log_level("unknown") == "INFO"
     assert sanitize_log_level("UnKnOwN") == "INFO"
+
+
+def simulated_error(x: int) -> None:
+    raise ValueError("Test")
+
+
+def test_run_in_parallel_exception():
+    with pytest.raises(ValueError):
+        run_in_parallel(simulated_error, [FData([1])])

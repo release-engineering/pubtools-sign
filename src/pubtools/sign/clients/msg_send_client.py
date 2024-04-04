@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List
+from typing import List, Dict, Any
 
 from ..models.msg import MsgMessage, MsgError
 
@@ -21,8 +21,9 @@ class _SendClient(_MsgClient):
         cert: str,
         ca_cert: str,
         errors: List[MsgError],
-    ):
-        super().__init__(errors=errors)
+        **kwargs: Dict[str, Any],
+    ) -> None:
+        super().__init__(errors=errors, **kwargs)
         self.broker_urls = broker_urls
         self.messages = messages
         self.ssl_domain = proton.SSLDomain(proton.SSLDomain.MODE_CLIENT)
@@ -42,8 +43,7 @@ class _SendClient(_MsgClient):
         self.sender = event.container.create_sender(conn)
 
     def on_sendable(self, event: proton.Event) -> None:
-        LOG.debug("Sender on_sendable")
-        if self.sent < self.total:
+        if event.sender.credit and self.sent < self.total:
             message = self.messages[self.sent]
             LOG.debug("Sending message: %s %s %s", message.body, message.address, message.headers)
             event.sender.send(
@@ -56,10 +56,10 @@ class _SendClient(_MsgClient):
             self.sent += 1
 
     def on_accepted(self, event: proton.Event) -> None:
-        LOG.debug("Sender accepted")
+        # LOG.info("Sender accepted")
         self.confirmed += 1
         if self.confirmed == self.total:
-            LOG.debug("Sender closing")
+            LOG.info("Sender closing")
             event.connection.close()
 
     def on_disconnected(self, event: proton.Event) -> None:  # pragma: no cover
@@ -77,7 +77,8 @@ class SendClient(Container):
         ca_cert: str,
         retries: int,
         errors: List[MsgError],
-    ):
+        **kwargs: Dict[str, Any],
+    ) -> None:
         """Send Client Initializer.
 
         :param messages: List of messages to send.
@@ -97,7 +98,7 @@ class SendClient(Container):
         )
         self._retries = retries
         self._errors = errors
-        super().__init__(self.handler)
+        super().__init__(self.handler, **kwargs)
 
     def run(self) -> List[MsgError]:
         """Run the SendClient."""

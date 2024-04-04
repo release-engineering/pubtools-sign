@@ -82,7 +82,8 @@ class _RecvClient(_MsgClient):
     def on_timer_task(self, event: proton.Event) -> None:
         if self.recv_in_time:
             LOG.info(
-                "[%d][%s] RECEIVER: On timeout but messages was received - continue, received: %d/%d",
+                "[%d][%s] RECEIVER: On timeout but messages was received "
+                "- continue, received: %d/%d",
                 threading.get_ident(),
                 self.uid,
                 len([x for x in self.recv_ids.values() if x]),
@@ -218,8 +219,6 @@ class RecvClient(Container):
             ):
                 self._errors.pop(0)
             message_ids = [x for x in message_ids if not self.recv.get(x)]
-            if not message_ids:
-                break
             self.handler = _RecvClient(
                 uid=self.uid + "-" + str(x),
                 topic=self.topic,
@@ -237,6 +236,11 @@ class RecvClient(Container):
             return self._errors
         return self.recv
 
+    def close(self) -> None:
+        """Close receiver."""
+        if self.handler:
+            self.handler.handlers[0].close()
+
 
 class RecvThread(threading.Thread):
     """Receiver wrapper allows to stop receiver on demand."""
@@ -252,7 +256,7 @@ class RecvThread(threading.Thread):
 
     def stop(self) -> None:
         """Stop receiver."""
-        self.recv.stop()
+        self.recv.close()
 
     def run(self) -> None:
         """Run receiver."""
