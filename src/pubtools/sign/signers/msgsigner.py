@@ -464,7 +464,12 @@ class MsgSigner(Signer):
 
         errors: List[MsgError] = []
         received: Dict[int, Any] = {}
-        LOG.info("Starting signing process. Retries %d, timeout: %d", self.retries, self.timeout)
+        LOG.info(
+            "Starting signing process. Retries %d,%d, timeout: %d",
+            self.send_retries,
+            self.retries,
+            self.timeout,
+        )
 
         for i in range(self.send_retries):
             message_ids = [message.body["request_id"] for message in messages]
@@ -496,7 +501,6 @@ class MsgSigner(Signer):
             ).run()
 
             # check sender errors
-            LOG.info("errors %s", errors)
             if errors:
                 signer_results.status = "error"
                 for error in errors:
@@ -506,9 +510,10 @@ class MsgSigner(Signer):
             # wait for receiver to finish
             recvt.join()
             recvt.stop()
+            received = recvc.get_received()
 
             # check receiver errors
-            errors = recvc._errors
+            errors = recvc.get_errors()
             if errors and errors[0].name == "MessagingTimeout":
                 if i + 1 < self.retries:
                     errors.pop(0)
@@ -524,8 +529,8 @@ class MsgSigner(Signer):
                     i,
                     self.retries,
                 )
-                # if not len(messages):
-                #     break
+                if not len(messages):
+                    break
 
             elif not errors:
                 break

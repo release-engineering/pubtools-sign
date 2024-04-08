@@ -175,7 +175,7 @@ class RecvClient(Container):
         """
         self.message_ids = message_ids
         self.recv: Dict[Any, Any] = received
-        self._errors = errors
+        self._errors: List[MsgError] = errors
         self.topic = topic
         self.message_ids = message_ids
         self.id_key = id_key
@@ -198,6 +198,20 @@ class RecvClient(Container):
             errors=self._errors,
         )
         super().__init__(self.handler)
+
+    def get_errors(self) -> List[MsgError]:
+        """Get errors from receiver.
+
+        This method doesn't have any meaningfull usecase, it's only used for testing
+        """
+        return self._errors  # pragma: no cover
+
+    def get_received(self) -> Dict[Any, Any]:
+        """Get received messages.
+
+        This method doesn't have any meaningfull usecase, it's only used for testing
+        """
+        return self.recv  # pragma: no cover
 
     def run(self) -> Union[Dict[Any, Any], List[MsgError]]:
         """Run the receiver."""
