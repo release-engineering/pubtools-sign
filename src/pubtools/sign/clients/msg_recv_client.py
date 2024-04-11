@@ -234,7 +234,7 @@ class RecvClient(Container):
                 self._errors.pop(0)
             message_ids = [x for x in message_ids if not self.recv.get(x)]
             self.handler.close()
-            self.handler = _RecvClient(
+            handler = _RecvClient(
                 uid=self.uid + "-" + str(x),
                 topic=self.topic,
                 message_ids=message_ids,
@@ -246,7 +246,8 @@ class RecvClient(Container):
                 recv=self.recv,
                 errors=self._errors,
             )
-            super().__init__(self.handler)
+            super().__init__(handler)
+            self.handler = handler
         else:
             return self._errors
         return self.recv
