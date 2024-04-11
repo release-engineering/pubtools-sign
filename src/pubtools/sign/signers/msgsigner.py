@@ -515,7 +515,7 @@ class MsgSigner(Signer):
             # check receiver errors
             errors = recvc.get_errors()
             if errors and errors[0].name == "MessagingTimeout":
-                if i + 1 < self.retries:
+                if i + 1 < self.send_retries:
                     errors.pop(0)
                 _messages = []
                 for message in messages:
@@ -527,7 +527,7 @@ class MsgSigner(Signer):
                     threading.get_ident(),
                     len(messages),
                     i,
-                    self.retries,
+                    self.send_retries,
                 )
                 if not len(messages):
                     break
