@@ -76,7 +76,6 @@ class _RecvClient(_MsgClient):
             self.timer_task.cancel()
             event.receiver.close()
             event.connection.close()
-            event.container.stop()
             LOG.info("[%d][%s] All messages received", threading.get_ident(), self.uid)
 
     def on_timer_task(self, event: proton.Event) -> None:
@@ -185,7 +184,7 @@ class RecvClient(Container):
         self.timeout = timeout
         self.uid = uid
         self._retries = retries
-        self.handler = _RecvClient(
+        handler = _RecvClient(
             uid=uid,
             topic=topic,
             message_ids=message_ids,
@@ -197,7 +196,8 @@ class RecvClient(Container):
             recv=self.recv,
             errors=self._errors,
         )
-        super().__init__(self.handler)
+        super().__init__(handler)
+        self._handler = handler
 
     def get_errors(self) -> List[MsgError]:
         """Get errors from receiver.
@@ -222,6 +222,7 @@ class RecvClient(Container):
 
         message_ids = self.message_ids[:]
         for x in range(self._retries):
+            handler = self._handler
             super().run()
             if len(self._errors) == errors_len:
                 break
@@ -233,7 +234,7 @@ class RecvClient(Container):
             ):
                 self._errors.pop(0)
             message_ids = [x for x in message_ids if not self.recv.get(x)]
-            self.handler.close()
+            handler.close()
             handler = _RecvClient(
                 uid=self.uid + "-" + str(x),
                 topic=self.topic,
@@ -247,15 +248,15 @@ class RecvClient(Container):
                 errors=self._errors,
             )
             super().__init__(handler)
-            self.handler = handler
+            self._handler = handler
         else:
             return self._errors
         return self.recv
 
     def close(self) -> None:
         """Close receiver."""
-        if self.handler:
-            self.handler.handlers[0].close()
+        if self._handler:
+            self._handler.handlers[0].close()
 
 
 class RecvThread(threading.Thread):
