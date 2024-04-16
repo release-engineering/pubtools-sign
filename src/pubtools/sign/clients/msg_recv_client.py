@@ -256,7 +256,7 @@ class RecvClient(Container):
     def close(self) -> None:
         """Close receiver."""
         if self._handler:
-            self._handler.handlers[0].close()
+            self._handler.close()
 
 
 class RecvThread(threading.Thread):

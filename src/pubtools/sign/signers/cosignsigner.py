@@ -269,7 +269,7 @@ class CosignSigner(Signer):
 
         for ref, (stdout, stderr, returncode) in outputs.items():
             if returncode != 0:
-                operation_result.results.append(stdout)
+                operation_result.results.append(stderr)
                 operation_result.failed = True
                 signing_results.signer_results.status = "failed"
             else:

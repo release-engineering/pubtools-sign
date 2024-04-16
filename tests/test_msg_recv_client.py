@@ -286,13 +286,13 @@ def test_recv_client_timeout_recv_in_time(
     )
 
     sender.handler.handlers[0].on_start(Mock())
-    receiver.handler.handlers[0].on_start(Mock())
+    receiver._handler.on_start(Mock())
     sender.handler.handlers[0].on_sendable(Mock())
-    receiver.handler.handlers[0].on_message(
+    receiver._handler.on_message(
         Mock(message=Mock(body='{"msg":{"message":"test_message","request_id":"2"}}'))
     )
-    receiver.handler.handlers[0].on_timer_task(Mock())
-    receiver.handler.handlers[0].on_message(
+    receiver._handler.on_timer_task(Mock())
+    receiver._handler.on_message(
         Mock(message=Mock(body='{"msg":{"message":"test_message","request_id":"2"}}'))
     )
     assert receiver.errors == []

@@ -861,7 +861,8 @@ def test_container_sign_recv_timeout_fails(patched_uuid, f_config_msg_signer_ok)
                 operation=container_sign_operation,
                 signer_results=MsgSignerResults(
                     status="error",
-                    error_message="MessagingTimeout : Out of time when receiving messages\n",
+                    error_message="MessagingTimeout : Out of time when receiving messages\n"
+                                  "MessagingTimeout : Out of time when receiving messages\n",
                 ),
                 operation_result=ContainerSignResult(
                     results=[""], signing_key="test-signing-key", failed=False
@@ -882,11 +883,6 @@ def test_container_sign_recv_timeout_ok(patched_uuid, f_config_msg_signer_ok):
         with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
             patched_send_client.return_value.run.return_value = []
             patched_recv_client.return_value.get_errors.return_value = [
-                MsgError(
-                    name="MessagingTimeout",
-                    description="Out of time when receiving messages",
-                    source="test-source",
-                ),
                 MsgError(
                     name="MessagingTimeout",
                     description="Out of time when receiving messages",
