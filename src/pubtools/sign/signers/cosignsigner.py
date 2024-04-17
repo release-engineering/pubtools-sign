@@ -272,6 +272,7 @@ class CosignSigner(Signer):
                 operation_result.results.append(stderr)
                 operation_result.failed = True
                 signing_results.signer_results.status = "failed"
+                #signing_results.signer_results.error_message += stderr
             else:
                 operation_result.results.append(stderr)
         signing_results.operation_result = operation_result

@@ -862,7 +862,7 @@ def test_container_sign_recv_timeout_fails(patched_uuid, f_config_msg_signer_ok)
                 signer_results=MsgSignerResults(
                     status="error",
                     error_message="MessagingTimeout : Out of time when receiving messages\n"
-                                  "MessagingTimeout : Out of time when receiving messages\n",
+                    "MessagingTimeout : Out of time when receiving messages\n",
                 ),
                 operation_result=ContainerSignResult(
                     results=[""], signing_key="test-signing-key", failed=False
@@ -960,8 +960,7 @@ def test_clear_sign_recv_timeout(patched_uuid, f_config_msg_signer_ok):
                 operation=clear_sign_operation,
                 signer_results=MsgSignerResults(
                     status="error",
-                    error_message="MessagingTimeout : Out of time when receiving messages\n"
-                    "MessagingTimeout : Out of time when receiving messages\n",
+                    error_message="MessagingTimeout : Out of time when receiving messages\n",
                 ),
                 operation_result=ClearSignResult(outputs=[""], signing_key="test-signing-key"),
             )

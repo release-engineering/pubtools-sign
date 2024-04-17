@@ -219,37 +219,8 @@ class RecvClient(Container):
         if not len(self.message_ids):
             LOG.warning("No messages to receive")
             return []
-
-        message_ids = self.message_ids[:]
-        for x in range(self._retries):
-            handler = self._handler
-            super().run()
-            if len(self._errors) == errors_len:
-                break
-            errors_len = len(self._errors)
-            if (
-                self._errors
-                and self._errors[0].name == "MessagingTimeout"
-                and x + 1 < self._retries
-            ):
-                self._errors.pop(0)
-            message_ids = [x for x in message_ids if not self.recv.get(x)]
-            handler.close()
-            handler = _RecvClient(
-                uid=self.uid + "-" + str(x),
-                topic=self.topic,
-                message_ids=message_ids,
-                id_key=self.id_key,
-                broker_urls=self.broker_urls,
-                cert=self.cert,
-                ca_cert=self.ca_cert,
-                timeout=self.timeout,
-                recv=self.recv,
-                errors=self._errors,
-            )
-            super().__init__(handler)
-            self._handler = handler
-        else:
+        super().run()
+        if self._errors:
             return self._errors
         return self.recv
 

@@ -354,20 +354,44 @@ class MsgSigner(Signer):
             # wait for receiver to finish
             recvt.join()
             recvt.stop()
+            LOG.info("XXXX")
 
             # check receiver errors
-            errors = recvc._errors
-            if errors and errors[0].name == "MessagingTimeout":
-                _messages = []
-                for message in messages:
-                    if message.body["request_id"] not in received:
-                        _messages.append(message)
-                if i != self.send_retries - 1:
-                    errors.pop(0)
-                messages = _messages
+            for x in range(self.retries - 1):
+                errors = recvc._errors
+                LOG.error(errors)
+                if errors and errors[0].name == "MessagingTimeout":
+                    LOG.info("RETRYING %s", x)
+                    _messages = []
+                    for message in messages:
+                        if message.body["request_id"] not in received:
+                            _messages.append(message)
+                    if x != self.retries - 1:
+                        errors.pop(0)
+                    messages = _messages
+                    message_ids = [message.body["request_id"] for message in messages]
 
-            elif not errors:
-                break
+                    LOG.info("Retrying recv")
+                    recvc = RecvClient(
+                        uid=str(i) + "-" + str(x),
+                        message_ids=message_ids,
+                        topic=self.topic_listen_to.format(
+                            **dict(list(asdict(self).items()) + list(asdict(operation).items()))
+                        ),
+                        id_key=self.message_id_key,
+                        broker_urls=self.messaging_brokers,
+                        cert=self.messaging_cert_key,
+                        ca_cert=self.messaging_ca_cert,
+                        timeout=self.timeout,
+                        retries=self.retries,
+                        errors=errors,
+                        received=received,
+                    )
+                    recvt = RecvThread(recvc)
+                    recvt.start()
+                    recvt.join()
+                elif not errors:
+                    break
 
         errors = recvc._errors
         if errors:
@@ -512,27 +536,44 @@ class MsgSigner(Signer):
             recvt.stop()
             received = recvc.get_received()
 
-            # check receiver errors
-            errors = recvc.get_errors()
-            if errors and errors[0].name == "MessagingTimeout":
-                if i + 1 < self.send_retries:
-                    errors.pop(0)
-                _messages = []
-                for message in messages:
-                    if message.body["request_id"] not in received:
-                        _messages.append(message)
-                messages = _messages
-                LOG.info(
-                    "[%d] Messaging timeout, %s signatures left to be processed. retries: (%d/%d)",
-                    threading.get_ident(),
-                    len(messages),
-                    i,
-                    self.send_retries,
-                )
-                if not len(messages):
+            for x in range(self.retries):
+                errors = recvc.get_errors()
+                LOG.error(errors)
+                if errors and errors[0].name == "MessagingTimeout":
+                    LOG.info("Retrying receiving %s/%s", x, self.retries)
+                    _messages = []
+                    for message in messages:
+                        if message.body["request_id"] not in received:
+                            _messages.append(message)
+                    if x != self.retries - 1:
+                        errors.pop(0)
+                    messages = _messages
+                    message_ids = [message.body["request_id"] for message in messages]
+
+                    recvc = RecvClient(
+                        uid=str(i) + "-" + str(x),
+                        message_ids=message_ids,
+                        topic=self.topic_listen_to.format(
+                            **dict(list(asdict(self).items()) + list(asdict(operation).items()))
+                        ),
+                        id_key=self.message_id_key,
+                        broker_urls=self.messaging_brokers,
+                        cert=self.messaging_cert_key,
+                        ca_cert=self.messaging_ca_cert,
+                        timeout=self.timeout,
+                        retries=self.retries,
+                        errors=errors,
+                        received=received,
+                    )
+                    recvt = RecvThread(recvc)
+                    recvt.start()
+                    recvt.join()
+                elif not errors:
                     break
 
-            elif not errors:
+            # check receiver errors
+            errors = recvc.get_errors()
+            if not errors:
                 break
 
         if errors:
