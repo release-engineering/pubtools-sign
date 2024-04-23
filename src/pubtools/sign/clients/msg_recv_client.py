@@ -215,7 +215,6 @@ class RecvClient(Container):
 
     def run(self) -> Union[Dict[Any, Any], List[MsgError]]:
         """Run the receiver."""
-        errors_len = 0
         if not len(self.message_ids):
             LOG.warning("No messages to receive")
             return []

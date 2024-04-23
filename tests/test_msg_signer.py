@@ -850,10 +850,10 @@ def test_container_sign_recv_timeout_fails(patched_uuid, f_config_msg_signer_ok)
             }
 
             signer = MsgSigner()
+            signer.load_config(load_config(f_config_msg_signer_ok))
             signer.retries = 2
             signer.send_retries = 1
 
-            signer.load_config(load_config(f_config_msg_signer_ok))
             res = signer.container_sign(container_sign_operation)
 
             assert res == SigningResults(
@@ -953,6 +953,9 @@ def test_clear_sign_recv_timeout(patched_uuid, f_config_msg_signer_ok):
 
             signer = MsgSigner()
             signer.load_config(load_config(f_config_msg_signer_ok))
+            signer.retries = 2
+            signer.send_retries = 1
+
             res = signer.clear_sign(clear_sign_operation)
 
             assert res == SigningResults(
@@ -960,7 +963,8 @@ def test_clear_sign_recv_timeout(patched_uuid, f_config_msg_signer_ok):
                 operation=clear_sign_operation,
                 signer_results=MsgSignerResults(
                     status="error",
-                    error_message="MessagingTimeout : Out of time when receiving messages\n",
+                    error_message="MessagingTimeout : Out of time when receiving messages\n"
+                    "MessagingTimeout : Out of time when receiving messages\n",
                 ),
                 operation_result=ClearSignResult(outputs=[""], signing_key="test-signing-key"),
             )
@@ -1005,12 +1009,20 @@ def test_recv_client_recv_message_break(
                     source=ANY,
                 )
             ],
+            [
+                MsgError(
+                    name="MessagingTimeout",
+                    description="Out of time when receiving messages",
+                    source=ANY,
+                )
+            ],
+            [],
         ]
-        patched_recv_get_received.side_effect = [{}, {"1234-5678-abcd-efgh": True}]
+        patched_recv_get_received.side_effect = [{"1234-5678-abcd-efgh": True}]
         signer = MsgSigner()
         signer.load_config(load_config(f_config_msg_signer_ok2))
         signer.retries = 2
-        signer.send_retries = 2
+        signer.send_retries = 1
         res = signer.container_sign(container_sign_operation)
 
         assert res == SigningResults(
@@ -1024,6 +1036,7 @@ def test_recv_client_recv_message_break(
                 results=[""], signing_key="test-signing-key", failed=False
             ),
         )
+        # assert False
 
 
 def test_msgsig_doc_arguments():

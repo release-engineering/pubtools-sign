@@ -10,7 +10,6 @@ from typing_extensions import Self
 import uuid
 import os
 import sys
-import threading
 
 from OpenSSL import crypto
 import click
@@ -354,12 +353,10 @@ class MsgSigner(Signer):
             # wait for receiver to finish
             recvt.join()
             recvt.stop()
-            LOG.info("XXXX")
 
             # check receiver errors
             for x in range(self.retries - 1):
                 errors = recvc._errors
-                LOG.error(errors)
                 if errors and errors[0].name == "MessagingTimeout":
                     LOG.info("RETRYING %s", x)
                     _messages = []
@@ -450,7 +447,7 @@ class MsgSigner(Signer):
 
         fargs = []
         for digest, reference in zip(operation.digests, operation.references):
-            repo = reference.split(":")[0].split("/", 1)[1].split(":")[0]
+            repo = reference.split("/", 1)[1].split(":")[0]
             fargs.append(
                 FData(
                     args=[
@@ -538,7 +535,6 @@ class MsgSigner(Signer):
 
             for x in range(self.retries):
                 errors = recvc.get_errors()
-                LOG.error(errors)
                 if errors and errors[0].name == "MessagingTimeout":
                     LOG.info("Retrying receiving %s/%s", x, self.retries)
                     _messages = []
@@ -548,6 +544,8 @@ class MsgSigner(Signer):
                     if x != self.retries - 1:
                         errors.pop(0)
                     messages = _messages
+                    if not messages:
+                        break
                     message_ids = [message.body["request_id"] for message in messages]
 
                     recvc = RecvClient(
@@ -570,6 +568,7 @@ class MsgSigner(Signer):
                     recvt.join()
                 elif not errors:
                     break
+                received = recvc.get_received()
 
             # check receiver errors
             errors = recvc.get_errors()

@@ -309,7 +309,7 @@ def test_container_sign_error(f_config_cosign_signer_ok, f_environ, f_expected_c
         assert res == SigningResults(
             signer=signer,
             operation=container_sign_operation,
-            signer_results=CosignSignerResults(status="failed", error_message=""),
+            signer_results=CosignSignerResults(status="failed", error_message="stderr"),
             operation_result=ContainerSignResult(
                 results=["stderr"], signing_key="test-signing-key", failed=True
             ),
