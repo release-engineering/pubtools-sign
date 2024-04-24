@@ -12,7 +12,9 @@ import proton
 import proton.utils
 from proton.reactor import Container
 
+from pubtools.tracing import get_trace_wrapper
 
+tw = get_trace_wrapper()
 LOG = logging.getLogger("pubtools.sign.client.msg_recv_client")
 
 
@@ -57,6 +59,7 @@ class _RecvClient(_MsgClient):
         self.receiver = event.container.create_receiver(self.conn, self.topic)
         self.timer_task = event.container.schedule(self.timeout / 2, self)
 
+    @tw.instrument_func()
     def on_message(self, event: proton.Event) -> None:
         LOG.debug("RECEIVER: On message (%s)", event)
         outer_message = json.loads(event.message.body)

@@ -10,6 +10,12 @@ import proton
 import proton.utils
 from proton.reactor import Container
 
+from pubtools.tracing import get_trace_wrapper
+
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+tw = get_trace_wrapper()
+propagator = TraceContextTextMapPropagator()
 LOG = logging.getLogger("pubtools.sign.signers.radas")
 
 
@@ -42,9 +48,12 @@ class _SendClient(_MsgClient):
         )
         self.sender = event.container.create_sender(conn)
 
+    @tw.instrument_func()
     def on_sendable(self, event: proton.Event) -> None:
         if event.sender.credit and self.sent < self.total:
             message = self.messages[self.sent]
+            # Inject trace context to message properties
+            propagator.inject(carrier=message.headers)
             LOG.debug("Sending message: %s %s %s", message.body, message.address, message.headers)
             event.sender.send(
                 proton.Message(
