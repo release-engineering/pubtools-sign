@@ -1036,7 +1036,6 @@ def test_recv_client_recv_message_break(
                 results=[""], signing_key="test-signing-key", failed=False
             ),
         )
-        # assert False
 
 
 def test_msgsig_doc_arguments():

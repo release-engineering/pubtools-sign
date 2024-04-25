@@ -392,11 +392,10 @@ class MsgSigner(Signer):
 
         errors = recvc._errors
         if errors:
-            if errors:
-                signer_results.status = "error"
-                for error in errors:
-                    signer_results.error_message += f"{error.name} : {error.description}\n"
-                return signing_results
+            signer_results.status = "error"
+            for error in errors:
+                signer_results.error_message += f"{error.name} : {error.description}\n"
+            return signing_results
 
         operation_result = ClearSignResult(
             signing_key=operation.signing_key, outputs=[""] * len(all_messages)
