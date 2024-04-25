@@ -483,3 +483,36 @@ def test_recv_client_close(
 
         tsc.join()
         rcvt.join()
+
+
+def test_recv_client_close_method(f_msgsigner_send_to_queue, f_qpid_broker):
+    qpid_broker, port = f_qpid_broker
+    errors = []
+    received = {}
+    with patch(
+        "pubtools.sign.clients.msg_recv_client._RecvClient.on_start", autospec=True
+    ) as patched_on_start:
+        patched_on_start.side_effect = lambda self, event: [
+            setattr(self, "timer_task", Mock()),
+            setattr(self, "conn", Mock()),
+            setattr(self, "receiver", Mock()),
+            time.sleep(1),
+        ]
+        receiver = RecvClient(
+            "uid-1",
+            f_msgsigner_send_to_queue,
+            ["1"],
+            "request_id",
+            [f"localhost:{port}"],
+            "",
+            "",
+            1.0,
+            2,
+            errors,
+            received,
+        )
+        receiver.handler.on_start(Mock())
+        receiver.close()
+        receiver.handler.timer_task.cancel.assert_called_once()
+        receiver.handler.receiver.close.assert_called_once()
+        receiver.handler.conn.close.assert_called_once()
