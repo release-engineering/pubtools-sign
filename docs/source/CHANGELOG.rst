@@ -1,6 +1,10 @@
 ChangeLog
 =========
 
+0.0.7 (02-05-2024)
+-------------------
+Fixed cosign OOM
+
 0.0.6 (25-04-2024)
 -------------------
 Add OTEL trace instrument for signing
