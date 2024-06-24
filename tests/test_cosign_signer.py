@@ -65,6 +65,22 @@ def f_expected_container_sign_args(f_config_cosign_signer_ok):
 
 
 @pytest.fixture
+def f_expected_container_sign_identity_args(f_config_cosign_signer_ok):
+    return [
+        "--signing-key",
+        "test-signing-key",
+        "--digest",
+        "some-digest",
+        "--reference",
+        "some-reference",
+        "--identity",
+        "some-registry/namespace/repo",
+        "--config-file",
+        f_config_cosign_signer_ok,
+    ]
+
+
+@pytest.fixture
 def f_expected_cosign_sign_args():
     return [
         "/usr/bin/cosign",
@@ -83,6 +99,33 @@ def f_expected_cosign_sign_args():
         "some-user",
         "--registry-password",
         "some-password",
+        "-a",
+        "tag=tag",
+        "some-registry/namespace/repo@sha256:abcdefg",
+    ]
+
+
+@pytest.fixture
+def f_expected_cosign_sign_identity_args():
+    return [
+        "/usr/bin/cosign",
+        "-t",
+        "30s",
+        "sign",
+        "-y",
+        "--key",
+        "test-signing-key",
+        "--allow-http-registry=false",
+        "--allow-insecure-registry=false",
+        "--rekor-url",
+        "https://rekor.sigstore.dev",
+        "--tlog-upload=true",
+        "--registry-username",
+        "some-user",
+        "--registry-password",
+        "some-password",
+        "--sign-container-identity",
+        "some-registry/namespace/repo",
         "-a",
         "tag=tag",
         "some-registry/namespace/repo@sha256:abcdefg",
@@ -114,6 +157,18 @@ def test_cosign_container_sign(f_cosign_signer, f_expected_container_sign_args):
     f_cosign_signer.return_value.sign.return_value.operation_result.signing_key = ""
     f_cosign_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(cosign_container_sign_main, f_expected_container_sign_args)
+    print(result.stdout)
+    assert result.exit_code == 0, result.output
+
+
+def test_cosign_container_identity_sign(f_cosign_signer, f_expected_container_sign_identity_args):
+    f_cosign_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
+        "status": "ok"
+    }
+    f_cosign_signer.return_value.sign.return_value.operation_result.results = []
+    f_cosign_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_cosign_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
+    result = CliRunner().invoke(cosign_container_sign_main, f_expected_container_sign_identity_args)
     print(result.stdout)
     assert result.exit_code == 0, result.output
 
@@ -206,6 +261,47 @@ def test_container_sign(f_config_cosign_signer_ok, f_environ, f_expected_cosign_
             [
                 call(
                     f_expected_cosign_sign_args,
+                    env={"PYTEST_CURRENT_TEST": ANY},
+                    stderr=-1,
+                    stdout=-1,
+                    text=True,
+                )
+            ]
+        )
+
+        assert res == SigningResults(
+            signer=signer,
+            operation=container_sign_operation,
+            signer_results=CosignSignerResults(status="ok", error_message=""),
+            operation_result=ContainerSignResult(
+                results=["stderr"], signing_key="test-signing-key", failed=False
+            ),
+        )
+
+
+def test_container_sign_identity(
+    f_config_cosign_signer_ok, f_environ, f_expected_cosign_sign_identity_args
+):
+    container_sign_operation = ContainerSignOperation(
+        task_id="",
+        digests=["sha256:abcdefg"],
+        references=["some-registry/namespace/repo:tag"],
+        identity_references=["some-registry/namespace/repo"],
+        signing_key="test-signing-key",
+    )
+
+    with patch("subprocess.Popen") as patched_popen:
+        patched_popen().returncode = 0
+        patched_popen().communicate.return_value = ("stdout", "stderr")
+
+        signer = CosignSigner()
+        signer.load_config(load_config(f_config_cosign_signer_ok))
+        res = signer.container_sign(container_sign_operation)
+
+        patched_popen.assert_has_calls(
+            [
+                call(
+                    f_expected_cosign_sign_identity_args,
                     env={"PYTEST_CURRENT_TEST": ANY},
                     stderr=-1,
                     stdout=-1,
@@ -354,6 +450,67 @@ def test_container_sign_digests_only(
                         "some-user",
                         "--registry-password",
                         "some-password",
+                        "some-registry/namespace/repo@sha256:abcdefg",
+                    ],
+                    env=ANY,
+                    stderr=-1,
+                    stdout=-1,
+                    text=True,
+                )
+            ]
+        )
+
+        assert res == SigningResults(
+            signer=signer,
+            operation=container_sign_operation,
+            signer_results=CosignSignerResults(status="ok", error_message=""),
+            operation_result=ContainerSignResult(
+                results=["stderr"], signing_key="test-signing-key", failed=False
+            ),
+        )
+
+
+def test_container_sign_digests_only_indentity(
+    f_config_cosign_signer_ok, f_environ, f_expected_cosign_sign_args
+):
+    container_sign_operation = ContainerSignOperation(
+        task_id="",
+        digests=["some-registry/namespace/repo@sha256:abcdefg"],
+        references=[],
+        identity_references=["some-registry/namespace/repo"],
+        signing_key="test-signing-key",
+    )
+
+    with patch("subprocess.Popen") as patched_popen:
+        patched_popen().returncode = 0
+        patched_popen().communicate.return_value = ("stdout", "stderr")
+
+        signer = CosignSigner()
+        signer.load_config(load_config(f_config_cosign_signer_ok))
+        res = signer.container_sign(container_sign_operation)
+
+        patched_popen.assert_has_calls(
+            [
+                call(
+                    [
+                        "/usr/bin/cosign",
+                        "-t",
+                        "30s",
+                        "sign",
+                        "-y",
+                        "--key",
+                        "test-signing-key",
+                        "--allow-http-registry=false",
+                        "--allow-insecure-registry=false",
+                        "--rekor-url",
+                        "https://rekor.sigstore.dev",
+                        "--tlog-upload=true",
+                        "--registry-username",
+                        "some-user",
+                        "--registry-password",
+                        "some-password",
+                        "--sign-container-identity",
+                        "some-registry/namespace/repo",
                         "some-registry/namespace/repo@sha256:abcdefg",
                     ],
                     env=ANY,

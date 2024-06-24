@@ -13,12 +13,14 @@ def test_containersign_operation_doc_argument():
             "task_id": {
                 "description": "Usually pub task id, serves as identifier for in signing request"
             },
+            "identity_references": {"description": "List of references to sign"},
         },
         "examples": {
             "digests": "",
             "references": "",
             "signing_key": "",
             "task_id": "",
+            "identity_references": "",
         },
     }
 
