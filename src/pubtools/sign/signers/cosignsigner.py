@@ -362,7 +362,7 @@ def cosign_container_sign(
     signing_result = cosign_signer.sign(operation)
     return {
         "signer_result": signing_result.signer_results.to_dict(),
-        "operation_results": signing_result.operation_result.results,  # type: ignore
+        "operation_results": signing_result.operation_result.results,
         "operation": signing_result.operation.to_dict(),
         "signing_key": signing_result.operation_result.signing_key,
     }
