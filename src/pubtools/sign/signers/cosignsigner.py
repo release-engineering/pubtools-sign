@@ -274,7 +274,6 @@ class CosignSigner(Signer):
                     identity_args[f"{repo}@{digest}"] = ["--sign-container-identity", identity]
 
         for ref, args in ref_args.items():
-            LOG.info(f"COSIGN ARGS: {common_args + args}")
             _identity_args = identity_args.get(ref, [])
             outputs[ref] = run_command(
                 common_args + _identity_args + args, env=env_vars, tries=self.retries
