@@ -3,7 +3,7 @@ name: Tox tests
 on: [push, pull_request]
 
 jobs:
-  py37:
+  py39:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -12,11 +12,11 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.9
       - name: Install Tox
         run: pip install tox
       - name: Run Tox
-        run: tox -e py37 -vv
+        run: tox -e py39 -vv
   black:
     runs-on: ubuntu-latest
     steps:
@@ -26,7 +26,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.9
       - name: Install Tox
         run: pip install tox
       - name: Run Tox
@@ -40,7 +40,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.9
       - name: Install Tox
         run: pip install tox
       - name: Run Tox
@@ -54,7 +54,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.9
       - name: Install Tox
         run: pip install tox
       - name: Run Tox
@@ -70,7 +70,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.9
       - name: Install Tox
         run: pip install tox
       - name: Run Tox
@@ -84,11 +84,11 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.9
       - name: Install Tox
         run: pip install tox
       - name: Run Tox
-        run: tox -e py37
+        run: tox -e py39
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         env:
@@ -105,7 +105,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.9
       - name: Install Tox
         run: pip install tox
       - name: Run Tox

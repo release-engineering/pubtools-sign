@@ -4,7 +4,7 @@ from dataclasses import field, dataclass
 import itertools
 import json
 import logging
-from typing import Dict, List, ClassVar, Any, Tuple, Type
+from typing import Dict, List, ClassVar, Any, Tuple, Type, Optional
 from typing_extensions import Self
 import os
 import sys
@@ -200,6 +200,18 @@ class CosignSigner(Signer):
         """Return list of supported operations."""
         return self.SUPPORTED_OPERATIONS
 
+    def _sign_container(
+        self,
+        args: List[str],
+        env: Dict[str, str],
+        tries: int,
+        identity: Optional[str] = None,
+        ref_digest: Optional[str] = None,
+        tag: Optional[str] = None,
+    ) -> Any:
+        LOG.info(f"Signing {identity} ({ref_digest}{tag or ''})")
+        return run_command(args, env=env, tries=tries)
+
     def sign(self: CosignSigner, operation: SignOperation) -> SigningResults:
         """Run signing operation.
 
@@ -241,7 +253,7 @@ class CosignSigner(Signer):
             operation_result=operation_result,
         )
 
-        ref_args_group: dict[str, List[List[str]]] = {}
+        ref_args_group: dict[str, List[Tuple[List[str], Dict[str, Any]]]] = {}
         common_args = [
             self.cosign_bin,
             "-t",
@@ -267,32 +279,40 @@ class CosignSigner(Signer):
                 operation.references, operation.identity_references, operation.digests, fillvalue=""
             ):
                 args = []
+                named_args = {}
                 if identity:
                     args = ["--sign-container-identity", identity]
+                    named_args["identity"] = identity
                 repo, tag = ref.rsplit(":", 1)
                 args.extend(["-a", f"tag={tag}", f"{repo}@{digest}"])
+                named_args["tag"] = tag
                 # To avoid conflict caused by running in parallel for the same reference, group
                 # args by reference.
                 ref_digest = f"{repo}@{digest}"
+                named_args["ref_digest"] = digest
+
                 ref_args_group.setdefault(ref_digest, [])
-                ref_args_group[ref_digest].append(args)
+                ref_args_group[ref_digest].append((args, named_args))
 
         else:
             for ref_digest, identity in itertools.zip_longest(
                 operation.digests, operation.identity_references, fillvalue=""
             ):
                 args = []
+                named_args = {}
                 if identity:
                     args = ["--sign-container-identity", identity]
+                    named_args["identity"] = identity
+                named_args["ref_digest"] = ref_digest
                 args.append(ref_digest)
                 ref_args_group.setdefault(ref_digest, [])
-                ref_args_group[ref_digest].append(args)
+                ref_args_group[ref_digest].append((args, named_args))
 
         # Execute cosign commands serially in each group while running groups concurrently.
         ret = run_in_parallel(
-            lambda args_group: [
-                run_command(common_args + args, env=env_vars, tries=self.retries)
-                for args in args_group
+            lambda args_group, **kwargs: [
+                self._sign_container(common_args + args, env=env_vars, tries=self.retries, **kwargs)
+                for args, kwargs in args_group
             ],
             [
                 FData(
@@ -391,21 +411,6 @@ def cosign_container_sign(
     }
 
 
-def cosign_list_existing_signatures(config_file: str, reference: str) -> Tuple[bool, str]:
-    """List existing signatures for given reference.
-
-    Args:
-        config_file (str): path to the config file
-        reference (str): reference to get list of signatures for
-    Returns:
-        Tuple[bool, str]: tuple of success flag and error message or result string
-    """
-    cosign_signer = CosignSigner()
-    config = _get_config_file(config_file)
-    cosign_signer.load_config(load_config(os.path.expanduser(config)))
-    return cosign_signer.existing_signatures(reference)
-
-
 @click.command()
 @click.option(
     "--signing-key",
@@ -462,3 +467,18 @@ def cosign_container_sign_main(
         else:
             for claim in ret["operation_results"]:
                 print(claim)
+
+
+def cosign_list_existing_signatures(config_file: str, reference: str) -> Tuple[bool, str]:
+    """List existing signatures for given reference.
+
+    Args:
+        config_file (str): path to the config file
+        reference (str): reference to get list of signatures for
+    Returns:
+        Tuple[bool, str]: tuple of success flag and error message or result string
+    """
+    cosign_signer = CosignSigner()
+    config = _get_config_file(config_file)
+    cosign_signer.load_config(load_config(os.path.expanduser(config)))
+    return cosign_signer.existing_signatures(reference)

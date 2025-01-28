@@ -1,9 +1,13 @@
-from typing import Any, List
+from typing import Any, List, Optional
 
 from ..models.msg import MsgError
 
 from proton.handlers import MessagingHandler
 import proton
+
+IGNORED_ERRORS = ["amqp:connection:framing-error"]
+
+LOG_HDR_EVT_FMT = "[EVNT: {}]"
 
 
 class _MsgClient(MessagingHandler):
@@ -11,7 +15,17 @@ class _MsgClient(MessagingHandler):
         super().__init__()
         self.errors = errors
 
-    def on_error(self, event: proton.Event, source: Any = None) -> None:
+    def _format_log_msg(self, msg: str, event: Optional[proton.Event] = None) -> str:
+        if event:
+            hdr = LOG_HDR_EVT_FMT.format(event.type)
+        else:
+            hdr = ""
+        return hdr + " " + msg
+
+    def on_error(self, event: proton.Event, source: Any = None) -> bool:
+        description = source.condition or source.remote_condition
+        if description.name in IGNORED_ERRORS:
+            return False
         self.errors.append(
             MsgError(
                 name=event,
@@ -20,6 +34,7 @@ class _MsgClient(MessagingHandler):
             )
         )
         event.container.stop()
+        return True
 
     def on_link_error(self, event: proton.Event) -> None:
         self.on_error(event, event.link)

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from unittest.mock import Mock
 
 
@@ -34,3 +35,20 @@ def test_msg_handler_errors():
             source=mock_error.connection,
         )
     ]
+
+
+@dataclass
+class FakeDescription:
+    """Fake error description."""
+
+    name: str
+
+
+def test_ingore_error():
+    mock_error = Mock(
+        transport=Mock(condition=FakeDescription(name="amqp:connection:framing-error"))
+    )
+    errors = []
+    msgsc = _MsgClient(errors)
+    msgsc.on_transport_error(mock_error)
+    assert errors == []

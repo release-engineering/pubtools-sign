@@ -141,7 +141,7 @@ def test_recv_client_transport_error(
         f_msgsigner_send_to_queue,
         ["1"],
         "request_id",
-        [f"localhost:{port+1}"],
+        [f"localhost:{port + 1}"],
         "",
         "",
         10.0,

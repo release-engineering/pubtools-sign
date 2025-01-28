@@ -468,7 +468,7 @@ class MsgSigner(Signer):
             messages.append(message)
 
         all_messages = [x for x in messages]
-        LOG.info(f"Signing {len(all_messages)}")
+        LOG.info(f"Signing {len(all_messages)} requests")
 
         signer_results = MsgSignerResults(status="ok", error_message="")
         operation_result = ContainerSignResult(
@@ -485,7 +485,7 @@ class MsgSigner(Signer):
         errors: List[MsgError] = []
         received: Dict[int, Any] = {}
         LOG.info(
-            "Starting signing process. Retries %d,%d, timeout: %d",
+            "Starting signing process. Retries (send: %d, recv:%d), timeout: %d",
             self.send_retries,
             self.retries,
             self.timeout,

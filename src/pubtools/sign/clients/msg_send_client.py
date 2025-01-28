@@ -16,7 +16,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 
 tw = get_trace_wrapper()
 propagator = TraceContextTextMapPropagator()
-LOG = logging.getLogger("pubtools.sign.signers.radas")
+LOG = logging.getLogger("pubtools.sign.signers.msg_send_client")
 
 
 class _SendClient(_MsgClient):
@@ -34,8 +34,10 @@ class _SendClient(_MsgClient):
         self.messages = messages
         self.ssl_domain = proton.SSLDomain(proton.SSLDomain.MODE_CLIENT)
         if cert:
+            LOG.info(self._format_log_msg(f"SENDER: Using {cert} as SSL certificate"))
             self.ssl_domain.set_credentials(cert, cert, None)
         if ca_cert:
+            LOG.info(self._format_log_msg(f"SENDER: Using {ca_cert} as SSL CA certificate"))
             self.ssl_domain.set_trusted_ca_db(ca_cert)
         self.ssl_domain.set_peer_authentication(proton.SSLDomain.ANONYMOUS_PEER)
         self.sent = 0
@@ -43,10 +45,13 @@ class _SendClient(_MsgClient):
         self.total = len(messages)
 
     def on_start(self, event: proton.Event) -> None:
-        conn = event.container.connect(
+        event.container.connect(
             urls=self.broker_urls, ssl_domain=self.ssl_domain, sasl_enabled=False
         )
-        self.sender = event.container.create_sender(conn)
+
+    def on_connection_opened(self, event: proton.Event) -> None:
+        event.container.connected = True
+        self.sender = event.container.create_sender(event.connection)
 
     @tw.instrument_func()
     def on_sendable(self, event: proton.Event) -> None:
@@ -54,7 +59,13 @@ class _SendClient(_MsgClient):
             message = self.messages[self.sent]
             # Inject trace context to message properties
             propagator.inject(carrier=message.headers)
-            LOG.debug("Sending message: %s %s %s", message.body, message.address, message.headers)
+            LOG.debug(
+                self._format_log_msg(
+                    f"SENDER: Sending message: {json.dumps(message.body)}"
+                    f"{message.address}"
+                    f"{json.dumps(message.headers)}",
+                )
+            )
             event.sender.send(
                 proton.Message(
                     properties=message.headers,
@@ -68,11 +79,29 @@ class _SendClient(_MsgClient):
         # LOG.info("Sender accepted")
         self.confirmed += 1
         if self.confirmed == self.total:
-            LOG.info("Sender closing")
+            LOG.info("SENDER: closing")
             event.connection.close()
+            self.sender.close()
 
     def on_disconnected(self, event: proton.Event) -> None:  # pragma: no cover
         self.sent = self.confirmed  # pragma: no cover
+
+    def on_error(self, event: proton.Event, source: Any = None) -> bool:
+        not_ignored = super().on_error(event, source)
+        if not not_ignored:
+            LOG.warning(
+                self._format_log_msg(
+                    f"SENDER Error: {source.condition or source.remote_condition} ignored",
+                    event=event,
+                )
+            )
+        else:
+            LOG.error(
+                self._format_log_msg(
+                    f"SENDER Error: {source.condition or source.remote_condition}", event=event
+                )
+            )
+        return not_ignored
 
 
 class SendClient(Container):

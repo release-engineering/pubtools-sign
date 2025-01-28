@@ -1,7 +1,8 @@
-from unittest.mock import patch
+from dataclasses import dataclass
+from unittest.mock import patch, Mock
 
 from pubtools.sign.clients.msg_send_client import SendClient, _SendClient
-from pubtools.sign.models.msg import MsgMessage
+from pubtools.sign.models.msg import MsgMessage, MsgError
 
 import json
 
@@ -67,3 +68,54 @@ def test_send_client_errors(
             [message1], [f"localhost:{port}"], f_client_certificate, f_ca_certificate, 1, errors
         )
         assert sc.run() == ["errors", "1"]
+
+
+@dataclass
+class FakeDescription:
+    """Fake error description."""
+
+    name: str
+
+
+def test_ingore_error(
+    f_msgsigner_listen_to_topic,
+    f_qpid_broker,
+    f_client_certificate,
+    f_ca_certificate,
+):
+    qpid_broker, port = f_qpid_broker
+    message1 = MsgMessage(
+        headers={}, address=f_msgsigner_listen_to_topic, body={"message": "test_message1"}
+    )
+    mock_error = Mock(
+        transport=Mock(condition=FakeDescription(name="amqp:connection:framing-error"))
+    )
+    errors = []
+    msgsc = _SendClient(
+        [message1], [f"localhost:{port}"], f_client_certificate, f_ca_certificate, errors
+    )
+    msgsc.on_transport_error(mock_error)
+    assert errors == []
+
+
+def test_non_ingored_error(
+    f_msgsigner_listen_to_topic,
+    f_qpid_broker,
+    f_client_certificate,
+    f_ca_certificate,
+):
+    qpid_broker, port = f_qpid_broker
+    message1 = MsgMessage(
+        headers={}, address=f_msgsigner_listen_to_topic, body={"message": "test_message1"}
+    )
+    mock_error = Mock(transport=Mock(condition=FakeDescription(name="amqp:simulated-error")))
+    errors = []
+    msgsc = _SendClient(
+        [message1], [f"localhost:{port}"], f_client_certificate, f_ca_certificate, errors
+    )
+    msgsc.on_transport_error(mock_error)
+    assert errors == [
+        MsgError(
+            name=mock_error, description=mock_error.transport.condition, source=mock_error.transport
+        )
+    ]

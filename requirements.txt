@@ -1,4 +1,4 @@
 requests
-typing_extension
+typing-extensions
 mock
 

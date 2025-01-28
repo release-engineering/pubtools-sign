@@ -19,6 +19,7 @@ LOG = logging.getLogger("pubtools.sign.client.msg_recv_client")
 
 
 class _RecvClient(_MsgClient):
+
     def __init__(
         self,
         uid: str,
@@ -33,13 +34,16 @@ class _RecvClient(_MsgClient):
         errors: List[MsgError],
     ) -> None:
         super().__init__(errors=errors)
+        self.uid = uid
         self.broker_urls = broker_urls
         self.topic = topic
         self.id_key = id_key
         self.ssl_domain = proton.SSLDomain(proton.SSLDomain.MODE_CLIENT)
         if cert:
+            LOG.info(self._format_log_msg(f"RECEIVER: Using {cert} as SSL certificate"))
             self.ssl_domain.set_credentials(cert, cert, None)
         if ca_cert:
+            LOG.info(self._format_log_msg(f"RECEIVER: Using {ca_cert} as SSL CA certificate"))
             self.ssl_domain.set_trusted_ca_db(ca_cert)
         self.ssl_domain.set_peer_authentication(proton.SSLDomain.ANONYMOUS_PEER)
         self.recv_ids = {x: False for x in message_ids}
@@ -47,21 +51,38 @@ class _RecvClient(_MsgClient):
         self.recv = recv
         self.timeout = timeout
         self.recv_in_time = False
-        self.uid = uid
         self.last_message_received = datetime.datetime.now()
-        LOG.info("Expected to receive %s messages", len(message_ids))
+        LOG.info(self._format_log_msg(f"RECEIVER: Listening to topic {topic}"))
+        LOG.info(self._format_log_msg(f"RECEIVER: Expected to receive {len(message_ids)} messages"))
 
     def on_start(self, event: proton.Event) -> None:
-        LOG.debug("RECEIVER: On start %s %s %s", event, self.topic, self.broker_urls)
+        LOG.debug(self._format_log_msg("RECEIVER: On start", event=event))
         self.conn = event.container.connect(
             urls=self.broker_urls, ssl_domain=self.ssl_domain, sasl_enabled=False
         )
         self.receiver = event.container.create_receiver(self.conn, self.topic)
         self.timer_task = event.container.schedule(self.timeout / 2, self)
 
+    def on_error(self, event: proton.Event, source: Any = None) -> bool:
+        not_ignored = super().on_error(event, event.transport)
+        if not not_ignored:
+            LOG.warning(
+                self._format_log_msg(
+                    f"RECEIVER Error: {source.condition or source.remote_condition} ignored",
+                    event=event,
+                )
+            )
+        else:
+            LOG.error(
+                self._format_log_msg(
+                    f"RECEIVER Error: {source.condition or source.remote_condition}", event=event
+                )
+            )
+        return not_ignored
+
     @tw.instrument_func()
     def on_message(self, event: proton.Event) -> None:
-        LOG.debug("RECEIVER: On message (%s)", event)
+        LOG.debug(self._format_log_msg(f"RECEIVER: On message {event.message.body}", event=event))
         outer_message = json.loads(event.message.body)
         headers = event.message.properties
         msg_id = outer_message["msg"][self.id_key]
@@ -73,23 +94,23 @@ class _RecvClient(_MsgClient):
             self.last_message_received = datetime.datetime.now()
             self.accept(event.delivery)
         else:
-            LOG.debug(f"RECEIVER: Ignored message {msg_id}")
+            LOG.debug(self._format_log_msg(f"RECEIVER: Ignored message {msg_id}", event=event))
 
         if self.recv_ids.values() and all(self.recv_ids.values()):
             self.timer_task.cancel()
             event.receiver.close()
             event.connection.close()
-            LOG.info("[%d][%s] All messages received", threading.get_ident(), self.uid)
+            LOG.info(self._format_log_msg("RECEIVER:All messages received", event=event))
 
     def on_timer_task(self, event: proton.Event) -> None:
         if self.recv_in_time:
             LOG.info(
-                "[%d][%s] RECEIVER: On timeout but messages was received "
-                "- continue, received: %d/%d",
-                threading.get_ident(),
-                self.uid,
-                len([x for x in self.recv_ids.values() if x]),
-                len(self.recv_ids),
+                self._format_log_msg(
+                    f"RECEIVER: On timeout but messages was received - "
+                    f"continue, received: {len([x for x in self.recv_ids.values() if x])}"
+                    f"/{len([x for x in self.recv_ids.values() if x])}",
+                    event=event,
+                )
             )
             self.recv_in_time = False
             self.timer_task = event.reactor.schedule(self.timeout / 2, self)
@@ -97,13 +118,13 @@ class _RecvClient(_MsgClient):
         if (datetime.datetime.now() - self.last_message_received).total_seconds() < self.timeout:
             self.timer_task = event.reactor.schedule(self.timeout / 2, self)
             return
-        LOG.info(
-            "[%d][%s] RECEIVER: On timeout (%s) messages: %d/%d",
-            threading.get_ident(),
-            event,
-            self.uid,
-            len([x for x in self.recv_ids.values() if x]),
-            len(self.recv_ids),
+        LOG.warning(
+            self._format_log_msg(
+                "RECEIVER: On timeout, received messages: "
+                f"{len([x for x in self.recv_ids.values() if x])}/"
+                f"{len(self.recv_ids)}",
+                event=event,
+            )
         )
         self.timer_task.cancel()
         if event.connection:
@@ -117,11 +138,11 @@ class _RecvClient(_MsgClient):
                 MsgError(
                     source=event,
                     name="MessagingTimeout",
-                    description="[%d] Out of time when receiving messages (%d/%d)"
-                    % (
-                        threading.get_ident(),
-                        len([x for x in self.recv_ids.values() if x]),
-                        len(self.recv_ids),
+                    description=self._format_log_msg(
+                        "Out of time when receiving messages "
+                        f"({len([x for x in self.recv_ids.values() if x])}"
+                        f"/{len(self.recv_ids)})",
+                        event=event,
                     ),
                 )
             )
@@ -218,6 +239,7 @@ class RecvClient(Container):
 
     def run(self) -> Union[Dict[Any, Any], List[MsgError]]:
         """Run the receiver."""
+        LOG.info("Running messaging receiver")
         if not len(self.message_ids):
             LOG.warning("No messages to receive")
             return []
@@ -228,6 +250,7 @@ class RecvClient(Container):
 
     def close(self) -> None:
         """Close receiver."""
+        LOG.info("Closing messaging receiver")
         if self._handler:
             self._handler.close()
 
