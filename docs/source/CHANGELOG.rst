@@ -1,6 +1,12 @@
 ChangeLog
 =========
 
+0.0.11 (31-01-2025)
+-------------------
+* Improved logging
+* Ignore amqp:connection:framing-error error in messaging signer
+
+
 0.0.10.1 (23-10-2024)
 ------------------
 * Fix building AppImage failure
