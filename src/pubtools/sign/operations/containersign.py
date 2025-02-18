@@ -25,6 +25,9 @@ class ContainerSignOperation(SignOperation):
     identity_references: List[str] = field(
         metadata={"description": "List of references to sign"}, default_factory=list
     )
+    requester: str = field(
+        metadata={"description": "Requester of the signing operation"}, default=""
+    )
 
     def to_dict(self) -> dict[str, Any]:
         """Return a dict representation of the object."""
@@ -33,4 +36,5 @@ class ContainerSignOperation(SignOperation):
             references=self.references,
             signing_key=self.signing_key,
             task_id=self.task_id,
+            requester=self.requester,
         )

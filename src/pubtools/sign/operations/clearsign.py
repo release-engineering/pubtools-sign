@@ -46,9 +46,16 @@ class ClearSignOperation(SignOperation):
             "sample": "repo",
         }
     )
+    requester: str = field(
+        metadata={"description": "Requester of the signing operation"}, default=""
+    )
 
     def to_dict(self) -> dict[str, Any]:
         """Return a dict representation of the object."""
         return dict(
-            inputs=self.inputs, signing_key=self.signing_key, task_id=self.task_id, repo=self.repo
+            inputs=self.inputs,
+            signing_key=self.signing_key,
+            task_id=self.task_id,
+            repo=self.repo,
+            requester=self.requester,
         )
