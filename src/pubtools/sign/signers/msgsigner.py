@@ -596,11 +596,14 @@ def msg_clear_sign(
     task_id: str = "",
     config_file: str = "",
     repo: str = "",
+    requester: str = "",
 ) -> Dict[str, Any]:
     """Run clearsign operation."""
     msg_signer = MsgSigner()
     config = _get_config_file(config_file)
     msg_signer.load_config(load_config(os.path.expanduser(config)))
+    if requester:
+        msg_signer.creator = requester
 
     str_inputs = []
     for input_ in inputs:
@@ -609,7 +612,7 @@ def msg_clear_sign(
         else:
             str_inputs.append(input_)
     operation = ClearSignOperation(
-        inputs=str_inputs, signing_key=signing_key, task_id=task_id, repo=repo
+        inputs=str_inputs, signing_key=signing_key, task_id=task_id, repo=repo, requester=requester
     )
     signing_result = msg_signer.sign(operation)
     return {
@@ -626,17 +629,21 @@ def msg_container_sign(
     config_file: str = "",
     digest: list[str] = [],
     reference: list[str] = [],
+    requester: str = "",
 ) -> Dict[str, Any]:
     """Run containersign operation with cli arguments."""
     msg_signer = MsgSigner()
     config = _get_config_file(config_file)
     msg_signer.load_config(load_config(os.path.expanduser(config)))
+    if requester:
+        msg_signer.creator = requester
 
     operation = ContainerSignOperation(
         digests=digest,
         references=reference,
         signing_key=signing_key,
         task_id=task_id,
+        requester=requester,
     )
     signing_result = msg_signer.sign(operation)
     return {
@@ -662,6 +669,13 @@ def msg_container_sign(
     default="INFO",
     help="Set log level",
 )
+@click.option(
+    "--requester",
+    required=False,
+    multiple=False,
+    type=str,
+    help="Use this requester instead one from certificate file.",
+)
 @click.option("--repo", help="Repository reference")
 @click.argument("inputs", nargs=-1)
 def msg_clear_sign_main(
@@ -671,6 +685,7 @@ def msg_clear_sign_main(
     config_file: str = "",
     raw: bool = False,
     log_level: str = "INFO",
+    requester: str = "",
     repo: str = "",
 ) -> None:
     """Entry point method for clearsign operation."""
@@ -685,6 +700,7 @@ def msg_clear_sign_main(
         signing_key=signing_key,
         task_id=task_id,
         repo=repo,
+        requester=requester,
         config_file=config_file,
     )
     if not raw:
@@ -727,6 +743,13 @@ def msg_clear_sign_main(
     type=str,
     help="References which should be signed.",
 )
+@click.option(
+    "--requester",
+    required=False,
+    multiple=False,
+    type=str,
+    help="Use this requester instead one from certificate file.",
+)
 @click.option("--raw", default=False, is_flag=True, help="Print raw output instead of json")
 @click.option(
     "--log-level",
@@ -740,6 +763,7 @@ def msg_container_sign_main(
     config_file: str = "",
     digest: List[str] = [],
     reference: List[str] = [],
+    requester: str = "",
     raw: bool = False,
     log_level: str = "INFO",
 ) -> None:
@@ -755,6 +779,7 @@ def msg_container_sign_main(
         config_file=config_file,
         digest=digest,
         reference=reference,
+        requester=requester,
     )
     if not raw:
         click.echo(json.dumps(ret))
