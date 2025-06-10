@@ -1,0 +1,9 @@
+mkdocs-callouts
+mkdocs-material
+mkdocs-obsidian-interactive-graph-plugin
+mkdocs-obsidian-support-plugin
+mkdocs-obsidian-bridge
+mkdocs-glightbox
+mkdocs-ezlinks-plugin
+mkdocs-click
+mkdocstrings[python]

@@ -8,7 +8,12 @@ import dataclasses
 
 @dataclasses.dataclass()
 class ClearSignResult(OperationResult):
-    """ClearOperationResult model."""
+    """ClearOperationResult model.
+
+    Attributes:
+        outputs (List[str]): List of signing result outputs.
+        signing_key (str): The signing key used during signing.
+    """
 
     outputs: List[str]
     signing_key: str

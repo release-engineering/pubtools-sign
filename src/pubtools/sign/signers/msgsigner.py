@@ -213,6 +213,7 @@ class MsgSigner(Signer):
     ) -> MsgMessage:
         if operation.signing_key in self.key_aliases:
             signing_key = self.key_aliases[operation.signing_key]
+            LOG.info(f"Using signing key alias {signing_key} for {operation.signing_key}")
         else:
             signing_key = operation.signing_key
         ret = MsgMessage(
@@ -233,7 +234,11 @@ class MsgSigner(Signer):
         return ret
 
     def load_config(self: MsgSigner, config_data: Dict[str, Any]) -> None:
-        """Load configuration of messaging signer."""
+        """Load configuration of messaging signer.
+
+        Arguments:
+            config_data (dict): configuration data to load
+        """
         self.messaging_brokers = config_data["msg_signer"]["messaging_brokers"]
         self.messaging_cert_key = os.path.expanduser(
             config_data["msg_signer"]["messaging_cert_key"]
@@ -258,16 +263,21 @@ class MsgSigner(Signer):
         return x509.get_subject().CN or x509.get_subject().UID  # type: ignore[attr-defined]
 
     def operations(self: MsgSigner) -> List[Type[SignOperation]]:
-        """Return list of supported operations."""
+        """Return list of supported signing operation classes.
+
+        Returns:
+            List[Type[SignOperation]]: list of supported operations
+        """
         return self.SUPPORTED_OPERATIONS
 
     def sign(self: MsgSigner, operation: SignOperation) -> SigningResults:
         """Run signing operation.
 
-        :param operation: signing operation
-        :type operation: SignOperation
+        Args:
+            operation (SignOperation): signing operation
 
-        :return: SigningResults
+        Returns:
+            SigningResults: results of the signing operation
         """
         if isinstance(operation, ClearSignOperation):
             return self.clear_sign(operation)
@@ -279,10 +289,11 @@ class MsgSigner(Signer):
     def clear_sign(self: MsgSigner, operation: ClearSignOperation) -> SigningResults:
         """Run the clearsign operation.
 
-        :param operation: signing operation
-        :type operation: ClearSignOperation
+        Args:
+            operation (ClearSignOperation): signing operation
 
-        :return: SigningResults
+        Returns:
+            SigningResults: results of the signing operation
         """
         set_log_level(LOG, self.log_level)
         messages = []
@@ -416,7 +427,15 @@ class MsgSigner(Signer):
         """Create manifest claim for container signing.
 
         See below for the specification for the manifest claim that is created here
-        https://github.com/containers/image/blob/master/docs/atomic-signature.md
+        https://github.com/containers/image/blob/main/docs/containers-signature.5.md#json-data-format
+
+        Arguments:
+            signature_key (str): The signing key to be used.
+            digest (str): The digest of the container image manifest.
+            reference (str): The reference of the container image.
+
+        Returns:
+            str: The base64 encoded manifest claim.
         """
         manifest_claim = {
             "critical": {
@@ -431,10 +450,11 @@ class MsgSigner(Signer):
     def container_sign(self: MsgSigner, operation: ContainerSignOperation) -> SigningResults:
         """Run container signing operation.
 
-        :param operation: signing operation
-        :type operation: ContainerSignOperation
+        Arguments:
+            operation (ContainerSignOperation): signing operation
 
-        :return: SigningResults
+        Results:
+            SigningResults: results of the signing operation
         """
         set_log_level(LOG, self.log_level)
         messages = []
@@ -603,7 +623,20 @@ def msg_clear_sign(
     repo: str = "",
     requester: str = "",
 ) -> Dict[str, Any]:
-    """Run clearsign operation."""
+    """Run clearsign operation on provided inputs.
+
+    Arguments:
+        inputs (List[str]): List of input strings or file paths(when prefixed with '@') to sign.
+        signing_key (str): 8 characters key fingerprint of key which should be used for signing.
+        task_id (str): Task id identifier.
+        config_file (str): Path to the pubtools-sign configuration file.
+        repo (str): Repository reference.
+        requester (str): Use this requester instead one from certificate file.
+
+    Returns:
+        Dict[str, Any]: Dictionary containing the signing results,
+        operation results, operation details, and signing key.
+    """
     msg_signer = MsgSigner()
     config = _get_config_file(config_file)
     msg_signer.load_config(load_config(os.path.expanduser(config)))
@@ -665,7 +698,7 @@ def msg_container_sign(
 @click.option(
     "--signing-key",
     required=True,
-    help="8 characters key fingerprint of key which should be used for signing",
+    help="8 characters key fingerprint of key which should be used for signing or key alias",
 )
 @click.option("--task-id", required=True, help="Task id identifier (usually pub task-id)")
 @click.option("--config-file", default=CONFIG_PATHS[0], help="path to the config file")
@@ -695,7 +728,19 @@ def msg_clear_sign_main(
     requester: str = "",
     repo: str = "",
 ) -> None:
-    """Entry point method for clearsign operation."""
+    """Entry point method for clearsign operation.
+
+    Print following json output on stdout if `--raw` is set:
+
+    >   {
+    >     "signer_result": [pubtools.sign.signers.msgsigner.MsgSignerResults][],
+    >     "operation_results": [pubtools.sign.results.clearsign.ClearSignResult][],
+    >     "operation": [pubtools.sign.operations.clearsign.ClearSignOperation][],
+    >     "signing_key": "signing_key_id"
+    >   }
+
+    Otherwise prints one clearsigned output per line if sucessfull or error messages if not
+    """
     ch = logging.StreamHandler()
     ch.setLevel(getattr(logging, sanitize_log_level(log_level)))
 
@@ -732,7 +777,7 @@ def msg_clear_sign_main(
 @click.option(
     "--signing-key",
     required=True,
-    help="8 characters key fingerprint of key which should be used for signing",
+    help="8 characters key fingerprint of key which should be used for signing or key alias",
 )
 @click.option(
     "--signing-key-name",
@@ -780,7 +825,19 @@ def msg_container_sign_main(
     raw: bool = False,
     log_level: str = "INFO",
 ) -> None:
-    """Entry point method for containersign operation."""
+    """Entry point method for containersign operation.
+
+    Print following json output on stdout when `--raw` is set:
+
+    {
+        "signer_result": [pubtools.sign.signers.msgsigner.MsgSignerResults][],
+        "operation_results": [pubtools.sign.results.containersign.ContainerSignResult][],
+        "operation": [pubtools.sign.operations.containersign.ContainerSignOperation][],
+        "signing_key": "signing_key_id"
+    }
+
+    Otherwise prints one signed claim per line if sucessfull or error messages if not
+    """
     ch = logging.StreamHandler()
     ch.setLevel(getattr(logging, sanitize_log_level(log_level)))
     LOG.addHandler(ch)

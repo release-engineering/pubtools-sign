@@ -121,16 +121,13 @@ class SendClient(Container):
     ) -> None:
         """Send Client Initializer.
 
-        :param messages: List of messages to send.
-        :type messages: List[MsgMessage]
-        :param broker_urls: List of addresses of messaging broker
-        :type messages: List[str]
-        :param cert: Messaging client certificate
-        :type cert: str
-        :param retries: Number of retries for sending messages
-        :type retries: int
-        :param errors: List of errors which occured during the process
-        :type errors: List[MsgError]
+        Args:
+            messages (List[MsgMessage]): List of messages to send.
+            broker_urls (List[str]): List of addresses of messaging broker.
+            cert (str): Path to messaging client key and certificate in PEM format.
+            ca_cert (str): Path to messaging CA certificate.
+            retries (int): Number of retries for sending messages.
+            errors (List[MsgError]): List of errors which occurred during the process.
         """
         self.messages = messages
         self.handler = _SendClient(
@@ -141,7 +138,11 @@ class SendClient(Container):
         super().__init__(self.handler, **kwargs)
 
     def run(self) -> List[MsgError]:  # type: ignore[override]
-        """Run the SendClient."""
+        """Run the SendClient.
+
+        Returns:
+            List[MsgError]: List of errors that occurred during sending messages.
+        """
         errors_len = 0
         if not len(self.messages):
             LOG.warning("No messages to send")

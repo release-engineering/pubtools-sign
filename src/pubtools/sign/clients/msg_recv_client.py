@@ -176,26 +176,18 @@ class RecvClient(Container):
     ) -> None:
         """Recv Client Initializer.
 
-        :param topic: Topic where to listen for incoming messages (for example topic://Topic.signed)
-        :type topic: str
-        :param message_ids: List of awaited message ids
-        :type topic: List[str]
-        :param id_key: Attribute name in message body which is considered as id
-        :type topic: str
-        :param message_ids: List of broker urls
-        :type topic: List[str]
-        :param cert: Messaging client certificate
-        :type cert: str
-        :param ca_cert: Messaging ca certificate
-        :type ca_cert: str
-        :param timeout: Timeout for the messaging receiver
-        :type timeout: int
-        :param retries: How many attempts to retry receiving messages
-        :type retries: int
-        :param errors: List of errors which occured during the process
-        :type errors: List[MsgError]
-        :param received: Mapping of received messages
-        :type errors: Dict[int, Any]
+        Args:
+            topic (str): Topic where to listen for incoming messages
+            message_ids (List[str]): List of awaited message ids
+            id_key (str): Attribute name in message body which is considered as id
+            broker_urls (List[str]): List of broker urls
+            cert (str): Messaging client certificate
+            ca_cert (str): Messaging ca certificate
+            timeout (int): Timeout for the messaging receiver
+            retries (int): How many attempts to retry receiving messages
+            errors (List[MsgError]): List of errors which occured during the process
+            received (Dict[Any, Any]): Mapping of received messages
+            uid (str): Unique identifier for the receiver
         """
         self.message_ids = message_ids
         self.recv: Dict[Any, Any] = received
@@ -228,6 +220,9 @@ class RecvClient(Container):
         """Get errors from receiver.
 
         This method doesn't have any meaningfull usecase, it's only used for testing
+
+        Returns:
+            List[MsgError]: List of errors which occured during the process
         """
         return self._errors  # pragma: no cover
 
@@ -235,11 +230,21 @@ class RecvClient(Container):
         """Get received messages.
 
         This method doesn't have any meaningfull usecase, it's only used for testing
+
+        Returns:
+            Dict[Any, Any]: Dictionary of received messages
         """
         return self.recv  # pragma: no cover
 
     def run(self) -> Union[Dict[Any, Any], List[MsgError]]:  # type: ignore[override]
-        """Run the receiver."""
+        """Run the receiver.
+
+        This method starts the receiver and waits for messages to be received.
+
+        Returns:
+            Union[Dict[Any, Any], List[MsgError]]: Dictionary of received messages if successful,
+            or a list of errors if any occurred.
+        """
         LOG.info("Running messaging receiver")
         if not len(self.message_ids):
             LOG.warning("No messages to receive")

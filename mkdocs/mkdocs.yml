@@ -1,0 +1,72 @@
+site_name: Pubtools-sign documentation
+repo_name: release-engineering/pubtools-sign
+repo_url: https://github.com/release-engineering/pubtools-sign
+
+nav:
+  - Introduction: 'index.md'
+  - 'installation.md'
+  - 'quick-start.md'
+  - User Guide:
+      - 'user-guide/user-guide.md'
+      - 'user-guide/config.md'
+      - 'user-guide/cli-commands.md'
+      - 'user-guide/container-signing.md'
+      - 'user-guide/signers/cosign-signer.md'
+      - 'user-guide/signers/msg-signer.md'
+  - 'developer/developer-guide.md'
+
+theme:
+  name: material
+  include_search_page: true
+  features:
+    - content.action.view
+    - content.code.annotate
+    - content.code.copy
+    - content.code.select
+    - content.tabs.link
+    - navigation.expand
+    - navigation.indexes
+    - navigation.sections
+    - navigation.path
+    - navigation.top
+    - navigation.tabs
+    - navigation.tracking
+    - search.highlight
+    - search.share
+    - search.suggest
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - codehilite
+  - md_in_html
+  - def_list
+  - sane_lists
+  - mkdocs-click
+  - pymdownx.details
+  - pymdownx.magiclink
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - toc:
+      permalink: "#"
+
+plugins:
+  - search
+  - callouts
+  - obsidian-interactive-graph
+  - obsidian-support
+  - obsidian-bridge
+  - glightbox
+  - ezlinks
+  - mkdocstrings
+
+extra_javascript:
+  - https://fastly.jsdelivr.net/npm/jquery/dist/jquery.min.js
+  - https://fastly.jsdelivr.net/npm/echarts/dist/echarts.min.js
+  - assets/javascripts/interactive_graph.js
+
+extra_css:
+  - assets/stylesheets/interactive_graph.css

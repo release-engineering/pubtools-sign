@@ -54,7 +54,7 @@ class CosignSignerResults(SignerResults):
 
 @dataclass()
 class CosignSigner(Signer):
-    """Messaging signer class."""
+    """Cosign signer class."""
 
     cosign_bin: str = field(
         init=False,
@@ -64,6 +64,7 @@ class CosignSigner(Signer):
         },
         default="/usr/bin/cosign",
     )
+
     timeout: str = field(
         init=False,
         metadata={
@@ -72,6 +73,7 @@ class CosignSigner(Signer):
         },
         default="3m0s",
     )
+
     num_threads: int = field(
         init=False,
         metadata={
@@ -170,7 +172,11 @@ class CosignSigner(Signer):
         self.auth_token = AuthTokenWrapper(token="")
 
     def load_config(self: CosignSigner, config_data: Dict[str, Any]) -> None:
-        """Load configuration of messaging signer."""
+        """Load configuration of messaging signer.
+
+        Arguments:
+            config_data (dict): configuration data to load
+        """
         self.cosign_bin = config_data["cosign_signer"].get("cosign_bin", self.cosign_bin)
         self.timeout = config_data["cosign_signer"].get("timeout", self.timeout)
         self.allow_http_registry = config_data["cosign_signer"].get(
@@ -197,7 +203,11 @@ class CosignSigner(Signer):
         self.num_threads = config_data["cosign_signer"].get("num_threads", self.num_threads)
 
     def operations(self: CosignSigner) -> List[Type[SignOperation]]:
-        """Return list of supported operations."""
+        """Return list of supported signing operation classes.
+
+        Returns:
+            List[Type[SignOperation]]: list of supported operations
+        """
         return self.SUPPORTED_OPERATIONS
 
     def _sign_container(
@@ -215,10 +225,11 @@ class CosignSigner(Signer):
     def sign(self: CosignSigner, operation: SignOperation) -> SigningResults:
         """Run signing operation.
 
-        :param operation: signing operation
-        :type operation: SignOperation
+        Arguments:
+            operation (SignOperation): signing operation to run
 
-        :return: SigningResults
+        Returns:
+            SigningResults: results of the signing operation
         """
         if isinstance(operation, ContainerSignOperation):
             return self.container_sign(operation)
@@ -228,10 +239,11 @@ class CosignSigner(Signer):
     def container_sign(self: CosignSigner, operation: ContainerSignOperation) -> SigningResults:
         """Run container signing operation.
 
-        :param operation: signing operation
-        :type operation: ContainerSignOperation
+        Arguments:
+            operation (ContainerSignOperation): container signing operation to run
 
-        :return: SigningResults
+        Returns:
+            SigningResults: results of the container signing operation
         """
         if operation.references and len(operation.digests) != len(operation.references):
             raise ValueError("Digests must pair with references")
@@ -339,6 +351,7 @@ class CosignSigner(Signer):
 
         Args:
             reference (str): reference to get list of signatures for
+
         Returns:
             Tuple[bool, str]: tuple of success flag and error message or result string
         """

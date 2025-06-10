@@ -14,7 +14,14 @@ if TYPE_CHECKING:  # pragma: no cover
 
 @dataclasses.dataclass
 class SigningResults:
-    """SigningResults model."""
+    """SigningResults model.
+
+    Attributes:
+        signer (Signer): The signer used for signing.
+        operation (SignOperation): The operation performed by the signer.
+        signer_results (SignerResults): Results from the signer.
+        operation_result (OperationResult): Result of the operation.
+    """
 
     signer: Signer
     operation: SignOperation

@@ -20,6 +20,7 @@ AUTH_FILES = [
     "${HOME}/.docker/config.json",
     "${REGISTRY_AUTH_FILE}",
 ]
+"""Default authentication files to search for credentials in container registry client."""
 
 
 @dataclasses.dataclass
@@ -57,7 +58,11 @@ class ContainerRegistryClient:
 
     @property
     def session(self) -> requests.Session:
-        """Get the session object."""
+        """Get the session object.
+
+        Returns:
+            requests.Session: The session object for making HTTP requests.
+        """
         if not self._session:
             self._session = requests.Session()
             retries = Retry(
@@ -70,11 +75,12 @@ class ContainerRegistryClient:
         """Resolve authentication for the given image reference.
 
         When username and password are provided in registry client, they are used.
-        Otherwise container configuration files are search for specific authentication
+        Otherwise `AUTH_FILES` are search for specific authentication
         entry based on host of image reference.
 
         Args:
             image_reference (str): Image reference to resolve authentication for.
+
         Returns:
             Tuple[str, str]: Username and password for authentication.
         """
@@ -111,6 +117,7 @@ class ContainerRegistryClient:
         Args:
             image_reference (str): Image reference to resolve authentication for.
             auth_header (str): Authentication header from the registry.
+
         Returns:
             str: Authentication token.
         """
@@ -140,8 +147,10 @@ class ContainerRegistryClient:
         Args:
             image_reference (str): Image reference to check.
             auth_token (AuthTokenWrapper): Authentication token.
+
         Returns:
-            bool: [True, ""] if the image exists, Tuple[False, <error_message>] otherwise.
+            Tuple[bool, str]: [True, ""] if the image exists,
+            Tuple[False, <error_message>] otherwise.
         """
         repo_ref, tag = image_reference.rsplit(":", 1)
         registry, repo = repo_ref.split("/", 1)
