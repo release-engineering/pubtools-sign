@@ -650,7 +650,7 @@ class MsgBatchSigner(MsgSigner):
             {
                 "claim_file": claim,
                 "sig_keyname": signing_key_names,
-                "sig_key_id": signing_keys,
+                "sig_key_ids": signing_keys,
                 "manifest_digest": digest,
             }
             for claim, digest in zip(claims, _extra_attrs.get("manifest_digest", ""))
