@@ -93,6 +93,18 @@ def _get_config_file(config_candidate: str) -> str:
     return config_candidate
 
 
+def create_container_atomic_signature(digest: str, identity: str) -> Dict[str, Any]:
+    """Create atomic container signature."""
+    return {
+        "critical": {
+            "type": "atomic container signature",
+            "image": {"docker-manifest-digest": digest},
+            "identity": {"docker-reference": identity},
+        },
+        "optional": {"creator": "pubtools-sign"},
+    }
+
+
 @dataclass
 class FData:
     """Dataclass for holding data for a function execution.

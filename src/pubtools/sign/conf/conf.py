@@ -48,12 +48,30 @@ class CosignSignerSchema(ma.Schema):
     num_threads = ma.fields.Integer(required=False)
 
 
+class RHSignerSchema(ma.Schema):
+    """Cosign signer configuration schema."""
+
+    application = ma.fields.String(required=False)
+    rh_signer_bin = ma.fields.String(required=False)
+    hostname = ma.fields.String(required=False)
+    principal = ma.fields.String(required=False)
+    keytab = ma.fields.String(required=False)
+    insecure = ma.fields.Bool(required=False)
+    NAT = ma.fields.Bool(required=False)
+    retries = ma.fields.Integer(required=False)
+    onbehalfof = ma.fields.String(required=False)
+    num_threads = ma.fields.Integer(required=False)
+    key_aliases = ma.fields.Dict(required=False, keys=ma.fields.String(), values=ma.fields.String())
+    log_level = ma.fields.String(required=False)
+
+
 class ConfigSchema(ma.Schema):
     """pubtools-sign configuration schema."""
 
     msg_signer = ma.fields.Nested(MsgSignerSchema)
     msg_batch_signer = ma.fields.Nested(MsgBatchSignerSchema)
     cosign_signer = ma.fields.Nested(CosignSignerSchema)
+    rh_signer = ma.fields.Nested(RHSignerSchema)
 
 
 def load_config(fname: str) -> Any:

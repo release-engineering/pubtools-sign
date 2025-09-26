@@ -27,6 +27,14 @@ from .conftest_cosignsig import (  # noqa: F401
     f_config_cosign_signer_aliases,  # noqa: F401
     f_config_cosign_signer_no_auth,
 )  # noqa: F401
+from .conftest_rhsigner import (  # noqa: F401
+    f_rh_signer,  # noqa: F401
+    f_config_rh_signer_aliases,  # noqa: F401
+    f_config_rh_signer_ok,  # noqa: F401
+    f_config_rh_signer_insecure,  # noqa: F401
+    f_config_rh_signer_nat,  # noqa: F401
+    f_config_rh_signer_onbehalfof,  # noqa: F401
+)
 
 
 from proton import Endpoint

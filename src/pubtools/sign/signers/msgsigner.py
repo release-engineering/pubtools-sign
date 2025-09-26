@@ -31,6 +31,7 @@ from ..utils import (
     isodate_now,
     _get_config_file,
     run_in_parallel,
+    create_container_atomic_signature,
     FData,
 )
 
@@ -438,14 +439,7 @@ class MsgSigner(Signer):
         Returns:
             str: The base64 encoded manifest claim.
         """
-        manifest_claim = {
-            "critical": {
-                "type": "atomic container signature",
-                "image": {"docker-manifest-digest": digest},
-                "identity": {"docker-reference": reference},
-            },
-            "optional": {"creator": "pubtools-sign"},
-        }
+        manifest_claim = create_container_atomic_signature(digest, reference)
         return base64.b64encode(json.dumps(manifest_claim).encode("latin1")).decode("latin1")
 
     def _prepare_messages(self, operation: ContainerSignOperation) -> List[List[MsgMessage]]:
