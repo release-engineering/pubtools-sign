@@ -256,44 +256,42 @@ def test_create_msg_batch_message(f_config_msg_batch_signer_ok):
             )
             assert signer._create_msg_batch_message(
                 data, "repo", operation, SignRequestType.CONTAINER
-            ) == [
-                MsgMessage(
-                    headers={
-                        "service": "pubtools-sign",
-                        "environment": "prod",
-                        "owner_id": "pubtools-sign-test",
-                        "mtype": SignRequestType.CONTAINER,
-                        "source": "metadata",
-                    },
-                    address="topic://Topic.sign",
-                    body={
-                        "claims": [
-                            {
-                                "claim_file": "claim1",
-                                "sig_keyname": [""],
-                                "sig_key_id": ["test-key"],
-                                "manifest_digest": "some-digest-1",
-                            },
-                            {
-                                "claim_file": "claim2",
-                                "sig_keyname": [""],
-                                "sig_key_id": ["test-key"],
-                                "manifest_digest": "some-digest-2",
-                            },
-                            {
-                                "claim_file": "claim3",
-                                "sig_keyname": [""],
-                                "sig_key_id": ["test-key"],
-                                "manifest_digest": "some-digest-3",
-                            },
-                        ],
-                        "request_id": "1234-5678-abcd-efgh",
-                        "created": "created-date-Z",
-                        "requested_by": "pubtools-sign-test",
-                        "repo": "repo",
-                    },
-                )
-            ]
+            ) == MsgMessage(
+                headers={
+                    "service": "pubtools-sign",
+                    "environment": "prod",
+                    "owner_id": "pubtools-sign-test",
+                    "mtype": SignRequestType.CONTAINER,
+                    "source": "metadata",
+                },
+                address="topic://Topic.sign",
+                body={
+                    "claims": [
+                        {
+                            "claim_file": "claim1",
+                            "sig_keyname": [""],
+                            "sig_key_ids": ["test-key"],
+                            "manifest_digest": "some-digest-1",
+                        },
+                        {
+                            "claim_file": "claim2",
+                            "sig_keyname": [""],
+                            "sig_key_ids": ["test-key"],
+                            "manifest_digest": "some-digest-2",
+                        },
+                        {
+                            "claim_file": "claim3",
+                            "sig_keyname": [""],
+                            "sig_key_ids": ["test-key"],
+                            "manifest_digest": "some-digest-3",
+                        },
+                    ],
+                    "request_id": "1234-5678-abcd-efgh",
+                    "created": "created-date-Z",
+                    "requested_by": "pubtools-sign-test",
+                    "repo": "repo",
+                },
+            )
 
 
 def test_sign(f_config_msg_batch_signer_ok):
