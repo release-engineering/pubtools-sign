@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from dataclasses import dataclass, field
-from typing import ClassVar, Dict, Any, Type
+from typing import ClassVar, Dict, Any, Type, List
 from typing_extensions import Self
 
 from ..results.operation_result import OperationResult
@@ -14,12 +14,20 @@ class SignOperation(ABC):
     """SignOperation Abstract class."""
 
     ResultType: ClassVar[OperationResult]
-    signing_key: str
-    signing_key_name: str = field(
-        default="",
+    signing_keys: List[str] = field(
         metadata={
-            "description": "Signing key name which should be used for signing",
-            "sample": "key1",
+            "description": "Signing key short ids which should be used for signing",
+            "sample": ["123"],
+            "type": "list",
+            "required": "true",
+        },
+        default_factory=list,
+    )
+    signing_key_names: List[str] = field(
+        default_factory=list,
+        metadata={
+            "description": "Signing key names which should be used for signing",
+            "sample": ["key1"],
         },
     )
 

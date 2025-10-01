@@ -20,10 +20,6 @@ class ContainerSignOperation(SignOperation):
     references: List[str] = field(
         metadata={"description": "List of references to sign"}, default_factory=list
     )
-    signing_key: str = field(
-        metadata={"description": "Signing key short id which should be used for signing"},
-        default="",
-    )
     task_id: str = field(
         metadata={
             "description": "Usually pub task id, serves as identifier for in signing request"
@@ -42,8 +38,8 @@ class ContainerSignOperation(SignOperation):
         return dict(
             digests=self.digests,
             references=self.references,
-            signing_key_name=self.signing_key_name,
-            signing_key=self.signing_key,
+            signing_key_names=self.signing_key_names,
+            signing_keys=self.signing_keys,
             task_id=self.task_id,
             requester=self.requester,
         )

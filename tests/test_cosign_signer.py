@@ -158,7 +158,7 @@ def test_cosign_container_sign(f_cosign_signer, f_expected_container_sign_args):
         "status": "ok"
     }
     f_cosign_signer.return_value.sign.return_value.operation_result.results = []
-    f_cosign_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_cosign_signer.return_value.sign.return_value.operation_result.signing_keys = []
     f_cosign_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(cosign_container_sign_main, f_expected_container_sign_args)
     print(result.stdout)
@@ -170,7 +170,7 @@ def test_cosign_container_identity_sign(f_cosign_signer, f_expected_container_si
         "status": "ok"
     }
     f_cosign_signer.return_value.sign.return_value.operation_result.results = []
-    f_cosign_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_cosign_signer.return_value.sign.return_value.operation_result.signing_keys = []
     f_cosign_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(cosign_container_sign_main, f_expected_container_sign_identity_args)
     print(result.stdout)
@@ -183,7 +183,7 @@ def test_cosign_container_sign_error(f_cosign_signer, f_expected_container_sign_
         "error_message": "simulated error",
     }
     f_cosign_signer.return_value.sign.return_value.operation_result.results = []
-    f_cosign_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_cosign_signer.return_value.sign.return_value.operation_result.signing_keys = []
     f_cosign_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(
         cosign_container_sign_main,
@@ -198,7 +198,7 @@ def test_cosign_container_sign_raw(f_cosign_signer, f_expected_container_sign_ar
         "status": "ok"
     }
     f_cosign_signer.return_value.sign.return_value.operation_result.results = ["signed"]
-    f_cosign_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_cosign_signer.return_value.sign.return_value.operation_result.signing_keys = []
     result = CliRunner().invoke(
         cosign_container_sign_main, f_expected_container_sign_args + ["--raw"]
     )
@@ -213,7 +213,7 @@ def test_cosign_container_sign_raw_error(f_cosign_signer, f_expected_container_s
         "error_message": "simulated error",
     }
     f_cosign_signer.return_value.sign.return_value.operation_result.results = []
-    f_cosign_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_cosign_signer.return_value.sign.return_value.operation_result.signing_keys = []
     result = CliRunner().invoke(
         cosign_container_sign_main, f_expected_container_sign_args + ["--raw"]
     )
@@ -233,7 +233,7 @@ def test_sign(f_config_cosign_signer_ok):
     container_sign_operation = ContainerSignOperation(
         digests=("some-digest",),
         references=("some-reference",),
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
         task_id="",
     )
     with patch(
@@ -250,7 +250,7 @@ def test_container_sign(f_config_cosign_signer_ok, f_environ, f_expected_cosign_
         task_id="",
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag"],
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
     )
 
     with patch("subprocess.Popen") as patched_popen:
@@ -278,7 +278,7 @@ def test_container_sign(f_config_cosign_signer_ok, f_environ, f_expected_cosign_
             operation=container_sign_operation,
             signer_results=CosignSignerResults(status="ok", error_message=""),
             operation_result=ContainerSignResult(
-                results=["stderr"], signing_key="test-signing-key", failed=False
+                results=["stderr"], signing_keys=["test-signing-key"], failed=False
             ),
         )
 
@@ -291,7 +291,7 @@ def test_container_sign_identity(
         digests=["sha256:abcdefg", "sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag1", "some-registry/namespace/repo:tag2"],
         identity_references=["some-registry/namespace/repo", "some-registry/namespace/repo"],
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
     )
 
     with patch("subprocess.Popen") as patched_popen:
@@ -330,7 +330,7 @@ def test_container_sign_identity(
             operation=container_sign_operation,
             signer_results=CosignSignerResults(status="ok", error_message=""),
             operation_result=ContainerSignResult(
-                results=["stderr", "stderr"], signing_key="test-signing-key", failed=False
+                results=["stderr", "stderr"], signing_keys=["test-signing-key"], failed=False
             ),
         )
 
@@ -340,7 +340,7 @@ def test_container_sign_alias(f_config_cosign_signer_aliases, f_environ):
         task_id="",
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag"],
-        signing_key="beta",
+        signing_keys=["beta"],
     )
 
     with patch("subprocess.Popen") as patched_popen:
@@ -384,7 +384,7 @@ def test_container_sign_alias(f_config_cosign_signer_aliases, f_environ):
             operation=container_sign_operation,
             signer_results=CosignSignerResults(status="ok", error_message=""),
             operation_result=ContainerSignResult(
-                results=["stderr"], signing_key="beta", failed=False
+                results=["stderr"], signing_keys=["beta"], failed=False
             ),
         )
 
@@ -394,7 +394,7 @@ def test_container_sign_error(f_config_cosign_signer_ok, f_environ, f_expected_c
         task_id="",
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag"],
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
     )
 
     with patch("subprocess.Popen") as patched_popen:
@@ -422,7 +422,7 @@ def test_container_sign_error(f_config_cosign_signer_ok, f_environ, f_expected_c
             operation=container_sign_operation,
             signer_results=CosignSignerResults(status="failed", error_message="stderr"),
             operation_result=ContainerSignResult(
-                results=["stderr"], signing_key="test-signing-key", failed=True
+                results=["stderr"], signing_keys=["test-signing-key"], failed=True
             ),
         )
 
@@ -434,7 +434,7 @@ def test_container_sign_digests_only(
         task_id="",
         digests=["some-registry/namespace/repo@sha256:abcdefg"],
         references=[],
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
     )
 
     with patch("subprocess.Popen") as patched_popen:
@@ -480,7 +480,7 @@ def test_container_sign_digests_only(
             operation=container_sign_operation,
             signer_results=CosignSignerResults(status="ok", error_message=""),
             operation_result=ContainerSignResult(
-                results=["stderr"], signing_key="test-signing-key", failed=False
+                results=["stderr"], signing_keys=["test-signing-key"], failed=False
             ),
         )
 
@@ -493,7 +493,7 @@ def test_container_sign_digests_only_indentity(
         digests=["some-registry/namespace/repo@sha256:abcdefg"],
         references=[],
         identity_references=["some-registry/namespace/repo"],
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
     )
 
     with patch("subprocess.Popen") as patched_popen:
@@ -541,7 +541,7 @@ def test_container_sign_digests_only_indentity(
             operation=container_sign_operation,
             signer_results=CosignSignerResults(status="ok", error_message=""),
             operation_result=ContainerSignResult(
-                results=["stderr"], signing_key="test-signing-key", failed=False
+                results=["stderr"], signing_keys=["test-signing-key"], failed=False
             ),
         )
 
@@ -551,7 +551,7 @@ def test_container_sign_mismatch_refs(f_config_cosign_signer_ok):
         task_id="",
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag1", "some-registry/namespace/repo:tag2"],
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
     )
 
     with patch("subprocess.Popen") as patched_popen:

@@ -8,7 +8,7 @@ def test_bundle_msg_container_sign(f_msg_signer, f_config_msg_signer_ok):
         "status": "ok"
     }
     f_msg_signer.return_value.sign.return_value.operation_result.results = []
-    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
     f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(
         cli,
@@ -34,7 +34,7 @@ def test_bundle_msg_clear_sign(f_msg_signer, f_config_msg_signer_ok):
         "status": "ok"
     }
     f_msg_signer.return_value.sign.return_value.operation_result.outputs = []
-    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
     f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(
         cli,

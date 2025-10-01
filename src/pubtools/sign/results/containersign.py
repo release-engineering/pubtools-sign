@@ -13,15 +13,15 @@ class ContainerSignResult(OperationResult):
 
     Attributes:
         results (List[str]): List of signing result outputs.
-        signing_key (str): The signing key used during signing.
+        signing_keys (List[str]): The signing keys used during signing.
         failed (bool): Indicates if the operation failed.
     """
 
     ResultType: ClassVar[OperationResult]
     results: List[str]
-    signing_key: str
+    signing_keys: List[str]
     failed: bool
 
     def to_dict(self: Self) -> Dict[Any, Any]:
         """Return dict representation of ContainerOperationResult."""
-        return {"results": self.results, "signing_key": self.signing_key, "failed": self.failed}
+        return {"results": self.results, "signing_keys": self.signing_keys, "failed": self.failed}

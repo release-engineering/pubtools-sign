@@ -203,35 +203,41 @@ class MsgSigner(Signer):
             headers.update(extra_attrs)
         return headers
 
-    def _create_msg_message(
+    def _create_msg_messages(
         self: MsgSigner,
         data: str,
         repo: str,
         operation: SignOperation,
         sig_type: SignRequestType,
         extra_attrs: Optional[Dict[str, Any]] = None,
-    ) -> MsgMessage:
-        if operation.signing_key in self.key_aliases:
-            signing_key = self.key_aliases[operation.signing_key]
-            LOG.info(f"Using signing key alias {signing_key} for {operation.signing_key}")
-        else:
-            signing_key = operation.signing_key
-        ret = MsgMessage(
-            headers=self._construct_headers(sig_type, extra_attrs=extra_attrs),
-            body=self._construct_signing_message(
-                data,
-                signing_key,
-                repo,
-                signing_key_name=operation.signing_key_name,
-                extra_attrs=extra_attrs,
-                sig_type=sig_type.value,
-            ),
-            address=self.topic_send_to.format(
-                **dict(list(asdict(self).items()) + list(asdict(operation).items()))
-            ),
-        )
-        LOG.debug(f"Construted message with request_id {ret.body['request_id']}")
-        return ret
+    ) -> List[MsgMessage]:
+        messages = []
+        for _signing_key, _signing_key_name in zip(
+            operation.signing_keys,
+            operation.signing_key_names or [""] * len(operation.signing_keys),
+        ):
+            if _signing_key in self.key_aliases:
+                signing_key = self.key_aliases[_signing_key]
+                LOG.info(f"Using signing key alias {signing_key} for {_signing_key}")
+            else:
+                signing_key = _signing_key
+            ret = MsgMessage(
+                headers=self._construct_headers(sig_type, extra_attrs=extra_attrs),
+                body=self._construct_signing_message(
+                    data,
+                    signing_key,
+                    repo,
+                    signing_key_name=_signing_key_name,
+                    extra_attrs=extra_attrs,
+                    sig_type=sig_type.value,
+                ),
+                address=self.topic_send_to.format(
+                    **dict(list(asdict(self).items()) + list(asdict(operation).items()))
+                ),
+            )
+            LOG.debug(f"Construted message with request_id {ret.body['request_id']}")
+            messages.append(ret)
+        return messages
 
     def load_config(self: MsgSigner, config_data: Dict[str, Any]) -> None:
         """Load configuration of messaging signer.
@@ -299,26 +305,22 @@ class MsgSigner(Signer):
         messages = []
         message_to_data = {}
         for in_data in operation.inputs:
-            message = self._create_msg_message(
+            _key_messages = self._create_msg_messages(
                 base64.b64encode(in_data.encode("latin1")).decode("latin-1"),
                 operation.repo,
                 operation,
                 SignRequestType.CLEARSIGN,
                 extra_attrs={"pub_task_id": operation.task_id},
             )
-            message_to_data[message.body["request_id"]] = message
-            messages.append(message)
+            for message in _key_messages:
+                message_to_data[message.body["request_id"]] = message
+                messages.append(message)
 
         all_messages = [x for x in messages]
 
-        signing_key = operation.signing_key
-        if signing_key in self.key_aliases:
-            signing_key = self.key_aliases[signing_key]
-            LOG.info(f"Using signing key alias {signing_key} for {operation.signing_key}")
-
         signer_results = MsgSignerResults(status="ok", error_message="")
         operation_result = ClearSignResult(
-            signing_key=operation.signing_key, outputs=[""] * len(operation.inputs)
+            signing_keys=operation.signing_keys, outputs=[""] * len(operation.inputs)
         )
         signing_results = SigningResults(
             signer=self,
@@ -414,7 +416,7 @@ class MsgSigner(Signer):
             return signing_results
 
         operation_result = ClearSignResult(
-            signing_key=operation.signing_key, outputs=[""] * len(all_messages)
+            signing_keys=operation.signing_keys, outputs=[""] * len(all_messages)
         )
 
         for recv_id, _received in recvc.recv.items():
@@ -423,14 +425,13 @@ class MsgSigner(Signer):
         return signing_results
 
     @staticmethod
-    def create_manifest_claim_message(signature_key: str, digest: str, reference: str) -> str:
+    def create_manifest_claim_message(digest: str, reference: str) -> str:
         """Create manifest claim for container signing.
 
         See below for the specification for the manifest claim that is created here
         https://github.com/containers/image/blob/main/docs/containers-signature.5.md#json-data-format
 
         Arguments:
-            signature_key (str): The signing key to be used.
             digest (str): The digest of the container image manifest.
             reference (str): The reference of the container image.
 
@@ -462,10 +463,16 @@ class MsgSigner(Signer):
         if len(operation.digests) != len(operation.references):
             raise ValueError("Digests must pairs with references")
 
-        signing_key = operation.signing_key
-        if signing_key in self.key_aliases:
-            signing_key = self.key_aliases[signing_key]
-            LOG.info(f"Using signing key alias {signing_key} for {operation.signing_key}")
+        signer_results = MsgSignerResults(status="ok", error_message="")
+        operation_result = ContainerSignResult(
+            signing_keys=operation.signing_keys, results=[""] * len(operation.digests), failed=False
+        )
+        signing_results = SigningResults(
+            signer=self,
+            operation=operation,
+            signer_results=signer_results,
+            operation_result=operation_result,
+        )
 
         LOG.info(f"Container sign operation for {len(operation.digests)}")
 
@@ -475,9 +482,7 @@ class MsgSigner(Signer):
             fargs.append(
                 FData(
                     args=[
-                        self.create_manifest_claim_message(
-                            signing_key, digest=digest, reference=reference
-                        ),
+                        self.create_manifest_claim_message(digest=digest, reference=reference),
                         repo,
                         operation,
                         SignRequestType.CONTAINER,
@@ -487,24 +492,19 @@ class MsgSigner(Signer):
                     },
                 )
             )
-        ret = run_in_parallel(self._create_msg_message, fargs)
-        for n, message in ret.items():
-            message_to_data[message.body["request_id"]] = message
-            messages.append(message)
+        ret = run_in_parallel(self._create_msg_messages, fargs)
+        for n, _key_messages in ret.items():
+            for message in _key_messages:
+                message_to_data[message.body["request_id"]] = message
+                messages.append(message)
 
         all_messages = [x for x in messages]
+        operation_result = ContainerSignResult(
+            signing_keys=operation.signing_keys, results=[""] * len(all_messages), failed=False
+        )
+
         LOG.info(f"Signing {len(all_messages)} requests")
 
-        signer_results = MsgSignerResults(status="ok", error_message="")
-        operation_result = ContainerSignResult(
-            signing_key=operation.signing_key, results=[""] * len(operation.digests), failed=False
-        )
-        signing_results = SigningResults(
-            signer=self,
-            operation=operation,
-            signer_results=signer_results,
-            operation_result=operation_result,
-        )
         LOG.debug(f"{len(messages)} messages to send")
 
         errors: List[MsgError] = []
@@ -599,25 +599,23 @@ class MsgSigner(Signer):
             if not errors:
                 break
 
-        if errors:
-            signer_results.status = "error"
-            for error in errors:
-                signer_results.error_message += f"{error.name} : {error.description}\n"
-            return signing_results
+            if errors:
+                signer_results.status = "error"
+                for error in errors:
+                    signer_results.error_message += f"{error.name} : {error.description}\n"
+                return signing_results
 
-        operation_result = ContainerSignResult(
-            signing_key=operation.signing_key, results=[""] * len(all_messages), failed=False
-        )
         for recv_id, _received in recvc.recv.items():
             operation_result.failed = True if _received[0]["msg"]["errors"] else False
             operation_result.results[all_messages.index(message_to_data[recv_id])] = _received
+
         signing_results.operation_result = operation_result
         return signing_results
 
 
 def msg_clear_sign(
     inputs: List[str],
-    signing_key: str = "",
+    signing_keys: List[str] = [],
     task_id: str = "",
     config_file: str = "",
     repo: str = "",
@@ -650,20 +648,24 @@ def msg_clear_sign(
         else:
             str_inputs.append(input_)
     operation = ClearSignOperation(
-        inputs=str_inputs, signing_key=signing_key, task_id=task_id, repo=repo, requester=requester
+        inputs=str_inputs,
+        signing_keys=signing_keys,
+        task_id=task_id,
+        repo=repo,
+        requester=requester,
     )
     signing_result = msg_signer.sign(operation)
     return {
         "signer_result": signing_result.signer_results.to_dict(),
         "operation_results": cast(ClearSignResult, signing_result.operation_result).outputs,
         "operation": signing_result.operation.to_dict(),
-        "signing_key": signing_result.operation_result.signing_key,
+        "signing_keys": signing_result.operation_result.signing_keys,
     }
 
 
 def msg_container_sign(
-    signing_key: str = "",
-    signing_key_name: str = "",
+    signing_keys: List[str] = [],
+    signing_key_names: List[str] = [],
     task_id: str = "",
     config_file: str = "",
     digest: list[str] = [],
@@ -680,8 +682,8 @@ def msg_container_sign(
     operation = ContainerSignOperation(
         digests=digest,
         references=reference,
-        signing_key=signing_key,
-        signing_key_name=signing_key_name,
+        signing_keys=signing_keys,
+        signing_key_names=signing_key_names,
         task_id=task_id,
         requester=requester,
     )
@@ -690,7 +692,7 @@ def msg_container_sign(
         "signer_result": signing_result.signer_results.to_dict(),
         "operation_results": signing_result.operation_result.results,
         "operation": signing_result.operation.to_dict(),
-        "signing_key": signing_result.operation_result.signing_key,
+        "signing_keys": signing_result.operation_result.signing_keys,
     }
 
 
@@ -698,6 +700,7 @@ def msg_container_sign(
 @click.option(
     "--signing-key",
     required=True,
+    multiple=True,
     help="8 characters key fingerprint of key which should be used for signing or key alias",
 )
 @click.option("--task-id", required=True, help="Task id identifier (usually pub task-id)")
@@ -720,7 +723,7 @@ def msg_container_sign(
 @click.argument("inputs", nargs=-1)
 def msg_clear_sign_main(
     inputs: List[str],
-    signing_key: str = "",
+    signing_key: List[str] = [],
     task_id: str = "",
     config_file: str = "",
     raw: bool = False,
@@ -749,7 +752,7 @@ def msg_clear_sign_main(
 
     ret = msg_clear_sign(
         inputs,
-        signing_key=signing_key,
+        signing_keys=signing_key,
         task_id=task_id,
         repo=repo,
         requester=requester,
@@ -777,11 +780,13 @@ def msg_clear_sign_main(
 @click.option(
     "--signing-key",
     required=True,
+    multiple=True,
     help="8 characters key fingerprint of key which should be used for signing or key alias",
 )
 @click.option(
     "--signing-key-name",
     required=False,
+    multiple=True,
     help="signing key name",
 )
 @click.option("--task-id", required=True, help="Task id identifier (usually pub task-id)")
@@ -815,8 +820,8 @@ def msg_clear_sign_main(
     help="Set log level",
 )
 def msg_container_sign_main(
-    signing_key: str = "",
-    signing_key_name: str = "",
+    signing_key: List[str] = [],
+    signing_key_name: List[str] = [],
     task_id: str = "",
     config_file: str = "",
     digest: List[str] = [],
@@ -833,7 +838,7 @@ def msg_container_sign_main(
         "signer_result": [pubtools.sign.signers.msgsigner.MsgSignerResults][],
         "operation_results": [pubtools.sign.results.containersign.ContainerSignResult][],
         "operation": [pubtools.sign.operations.containersign.ContainerSignOperation][],
-        "signing_key": "signing_key_id"
+        "signing_keys": ["signing_key_id"]
     }
 
     Otherwise prints one signed claim per line if sucessfull or error messages if not
@@ -844,8 +849,8 @@ def msg_container_sign_main(
     logging.basicConfig(level=getattr(logging, sanitize_log_level(log_level)))
 
     ret = msg_container_sign(
-        signing_key=signing_key,
-        signing_key_name=signing_key_name,
+        signing_keys=signing_key,
+        signing_key_names=signing_key_name,
         task_id=task_id,
         config_file=config_file,
         digest=digest,

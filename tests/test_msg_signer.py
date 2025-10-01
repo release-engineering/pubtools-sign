@@ -32,7 +32,7 @@ def test_msg_container_sign(f_msg_signer, f_config_msg_signer_ok):
         "status": "ok"
     }
     f_msg_signer.return_value.sign.return_value.operation_result.results = []
-    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
     f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(
         msg_container_sign_main,
@@ -58,7 +58,7 @@ def test_msg_container_sign_keyname(f_msg_signer, f_config_msg_signer_ok):
         "status": "ok"
     }
     f_msg_signer.return_value.sign.return_value.operation_result.results = []
-    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
     f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(
         msg_container_sign_main,
@@ -86,7 +86,7 @@ def test_msg_container_sign_requester(f_msg_signer, f_config_msg_signer_ok):
         "status": "ok"
     }
     f_msg_signer.return_value.sign.return_value.operation_result.results = []
-    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
     f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(
         msg_container_sign_main,
@@ -115,7 +115,7 @@ def test_msg_container_sign_error(f_msg_signer, f_config_msg_signer_ok):
         "error_message": "simulated error",
     }
     f_msg_signer.return_value.sign.return_value.operation_result.results = []
-    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
     f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(
         msg_container_sign_main,
@@ -143,7 +143,7 @@ def test_msg_container_sign_raw(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.operation_result.results = [
         ({"i": 456, "msg": {"errors": [], "signed_claim": "signed"}}, {})
     ]
-    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
     result = CliRunner().invoke(
         msg_container_sign_main,
         [
@@ -179,7 +179,7 @@ def test_msg_container_sign_raw_error(f_msg_signer, f_config_msg_signer_ok):
             {},
         )
     ]
-    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
     result = CliRunner().invoke(
         msg_container_sign_main,
         [
@@ -208,7 +208,7 @@ def test_msg_clearsign_sign(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.operation_result.outputs = [
         ({"i": 456, "msg": {"errors": [], "signed_data": "test"}}, {})
     ]
-    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
     f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(
         msg_clear_sign_main,
@@ -233,7 +233,7 @@ def test_msg_clearsign_sign_requester(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.operation_result.outputs = [
         ({"i": 456, "msg": {"errors": [], "signed_data": "test"}}, {})
     ]
-    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
     f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(
         msg_clear_sign_main,
@@ -259,7 +259,7 @@ def test_msg_clearsign_sign_error(f_msg_signer, f_config_msg_signer_ok):
         "error_message": "simulated error",
     }
     f_msg_signer.return_value.sign.return_value.operation_result.outputs = []
-    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
     f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(
         msg_clear_sign_main,
@@ -283,7 +283,7 @@ def test_msg_clearsign_sign_raw(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.operation_result.outputs = [
         ({"i": 456, "msg": {"errors": [], "signed_data": "signed"}}, {})
     ]
-    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
     result = CliRunner().invoke(
         msg_clear_sign_main,
         [
@@ -307,7 +307,7 @@ def test_msg_clearsign_sign_raw_error2(f_msg_signer, f_config_msg_signer_ok):
         "error_message": "simulated error",
     }
     f_msg_signer.return_value.sign.return_value.operation_result.outputs = []
-    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
     result = CliRunner().invoke(
         msg_clear_sign_main,
         [
@@ -333,7 +333,7 @@ def test_msg_clearsign_sign_raw_error(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.sign.return_value.operation_result.outputs = [
         ({"i": 456, "msg": {"errors": ["simulated error"], "signed_data": "signed"}}, {})
     ]
-    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
     result = CliRunner().invoke(
         msg_clear_sign_main,
         [
@@ -357,7 +357,7 @@ def test_msg_clearsign_sign_file_input(f_msg_signer, f_config_msg_signer_ok):
         "status": "ok"
     }
     f_msg_signer.return_value.sign.return_value.operation_result.outputs = []
-    f_msg_signer.return_value.sign.return_value.operation_result.signing_key = ""
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
     f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
     result = CliRunner().invoke(
         msg_clear_sign_main,
@@ -377,7 +377,7 @@ def test_msg_clearsign_sign_file_input(f_msg_signer, f_config_msg_signer_ok):
 def test__msg_clearsign_sign(f_msg_signer, f_config_msg_signer_ok):
     msg_clear_sign(
         ["hello world"],
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
         task_id="1",
         config_file=f_config_msg_signer_ok,
         repo="repo",
@@ -385,7 +385,7 @@ def test__msg_clearsign_sign(f_msg_signer, f_config_msg_signer_ok):
 
     f_msg_signer.return_value.load_config.assert_called_with(load_config(f_config_msg_signer_ok))
     operation = ClearSignOperation(
-        inputs=["hello world"], signing_key="test-signing-key", task_id="1", repo="repo"
+        inputs=["hello world"], signing_keys=["test-signing-key"], task_id="1", repo="repo"
     )
     f_msg_signer.return_value.sign.assert_called_with(operation)
 
@@ -393,7 +393,7 @@ def test__msg_clearsign_sign(f_msg_signer, f_config_msg_signer_ok):
 def test__msg_clearsign_sign_file_input(f_msg_signer, f_config_msg_signer_ok):
     msg_clear_sign(
         [f"@{f_config_msg_signer_ok}"],
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
         task_id="1",
         config_file=f_config_msg_signer_ok,
         repo="repo",
@@ -402,7 +402,7 @@ def test__msg_clearsign_sign_file_input(f_msg_signer, f_config_msg_signer_ok):
     f_msg_signer.return_value.load_config.assert_called_with(load_config(f_config_msg_signer_ok))
     operation = ClearSignOperation(
         inputs=[open(f_config_msg_signer_ok).read()],
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
         task_id="1",
         repo="repo",
     )
@@ -506,48 +506,54 @@ def test_create_msg_message(f_config_msg_signer_ok):
         with patch("pubtools.sign.signers.msgsigner.isodate_now") as patched_date:
             patched_date.return_value = "created-date-Z"
             operation = ClearSignOperation(
-                inputs=["test-data-inputs"], signing_key="test-key", task_id="1", repo="repo"
+                inputs=["test-data-inputs"], signing_keys=["test-key"], task_id="1", repo="repo"
             )
-            assert signer._create_msg_message(
+            created_messages = signer._create_msg_messages(
                 data, "repo", operation, SignRequestType.CONTAINER
-            ) == MsgMessage(
-                headers={
-                    "service": "pubtools-sign",
-                    "environment": "prod",
-                    "owner_id": "pubtools-sign-test",
-                    "mtype": SignRequestType.CONTAINER,
-                    "source": "metadata",
-                },
-                address="topic://Topic.sign",
-                body={
-                    "sig_key_id": "test-key",
-                    "claim_file": "test-data",
-                    "request_id": "1234-5678-abcd-efgh",
-                    "created": "created-date-Z",
-                    "requested_by": "pubtools-sign-test",
-                    "repo": "repo",
-                },
             )
-            assert signer._create_msg_message(
+            assert len(created_messages) == 1
+            assert created_messages == [
+                MsgMessage(
+                    headers={
+                        "service": "pubtools-sign",
+                        "environment": "prod",
+                        "owner_id": "pubtools-sign-test",
+                        "mtype": SignRequestType.CONTAINER,
+                        "source": "metadata",
+                    },
+                    address="topic://Topic.sign",
+                    body={
+                        "sig_key_id": "test-key",
+                        "claim_file": "test-data",
+                        "request_id": "1234-5678-abcd-efgh",
+                        "created": "created-date-Z",
+                        "requested_by": "pubtools-sign-test",
+                        "repo": "repo",
+                    },
+                )
+            ]
+            assert signer._create_msg_messages(
                 data, "repo", operation, SignRequestType.CLEARSIGN
-            ) == MsgMessage(
-                headers={
-                    "service": "pubtools-sign",
-                    "environment": "prod",
-                    "owner_id": "pubtools-sign-test",
-                    "mtype": SignRequestType.CLEARSIGN,
-                    "source": "metadata",
-                },
-                address="topic://Topic.sign",
-                body={
-                    "sig_key_id": "test-key",
-                    "data": "test-data",
-                    "request_id": "1234-5678-abcd-efgh",
-                    "created": "created-date-Z",
-                    "requested_by": "pubtools-sign-test",
-                    "repo": "repo",
-                },
-            )
+            ) == [
+                MsgMessage(
+                    headers={
+                        "service": "pubtools-sign",
+                        "environment": "prod",
+                        "owner_id": "pubtools-sign-test",
+                        "mtype": SignRequestType.CLEARSIGN,
+                        "source": "metadata",
+                    },
+                    address="topic://Topic.sign",
+                    body={
+                        "sig_key_id": "test-key",
+                        "data": "test-data",
+                        "request_id": "1234-5678-abcd-efgh",
+                        "created": "created-date-Z",
+                        "requested_by": "pubtools-sign-test",
+                        "repo": "repo",
+                    },
+                )
+            ]
 
 
 def test_sign(f_config_msg_signer_ok):
@@ -556,11 +562,11 @@ def test_sign(f_config_msg_signer_ok):
     container_sign_operation = ContainerSignOperation(
         digests=("some-digest",),
         references=("some-reference",),
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
         task_id="1",
     )
     clear_sign_operation = ClearSignOperation(
-        inputs=["hello world"], signing_key="test-signing-key", task_id="1", repo="repo"
+        inputs=["hello world"], signing_keys=["test-signing-key"], task_id="1", repo="repo"
     )
 
     with patch("pubtools.sign.signers.msgsigner.MsgSigner.clear_sign") as patched_clear_sign:
@@ -578,7 +584,7 @@ def test_sign(f_config_msg_signer_ok):
 def test_create_manifest_claim_message():
     signer = MsgSigner()
     assert signer.create_manifest_claim_message(
-        "some-key", "some-digest", "some-reference"
+        "some-digest", "some-reference"
     ) == base64.b64encode(
         json.dumps(
             {
@@ -598,7 +604,7 @@ def test_create_manifest_claim_message():
 @patch("uuid.uuid4", return_value="1234-5678-abcd-efgh")
 def test_clear_sign(patched_uuid, f_config_msg_signer_ok):
     clear_sign_operation = ClearSignOperation(
-        inputs=["hello world"], signing_key="test-signing-key", task_id="1", repo="repo"
+        inputs=["hello world"], signing_keys=["test-signing-key"], task_id="1", repo="repo"
     )
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
         with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
@@ -617,7 +623,40 @@ def test_clear_sign(patched_uuid, f_config_msg_signer_ok):
                 signer_results=MsgSignerResults(status="ok", error_message=""),
                 operation_result=ClearSignResult(
                     outputs=["signed:'hello world'"],
-                    signing_key="test-signing-key",
+                    signing_keys=["test-signing-key"],
+                ),
+            )
+
+
+@patch("uuid.uuid4", side_effect=["1234-5678-abcd-efgh", "2234-5678-abcd-efgh"])
+def test_clear_sign_multiple_signing_keys(patched_uuid, f_config_msg_signer_ok):
+    clear_sign_operation = ClearSignOperation(
+        inputs=["hello world"],
+        signing_keys=["test-signing-key", "test-signing-key2"],
+        task_id="1",
+        repo="repo",
+    )
+    with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
+        with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
+            patched_send_client.return_value.run.return_value = []
+            patched_recv_client.return_value.run.return_value = []
+            patched_recv_client.return_value.recv = {
+                "1234-5678-abcd-efgh": "signed:'hello world'",
+                "2234-5678-abcd-efgh": "signed:'hello world2'",
+            }
+            patched_recv_client.return_value._errors = []
+
+            signer = MsgSigner()
+            signer.load_config(load_config(f_config_msg_signer_ok))
+            res = signer.clear_sign(clear_sign_operation)
+
+            assert res == SigningResults(
+                signer=signer,
+                operation=clear_sign_operation,
+                signer_results=MsgSignerResults(status="ok", error_message=""),
+                operation_result=ClearSignResult(
+                    outputs=["signed:'hello world'", "signed:'hello world2'"],
+                    signing_keys=["test-signing-key", "test-signing-key2"],
                 ),
             )
 
@@ -625,7 +664,7 @@ def test_clear_sign(patched_uuid, f_config_msg_signer_ok):
 @patch("uuid.uuid4", return_value="1234-5678-abcd-efgh")
 def test_clear_sign_aliases(patched_uuid, f_config_msg_signer_aliases):
     clear_sign_operation = ClearSignOperation(
-        inputs=["hello world"], signing_key="beta", task_id="1", repo="repo"
+        inputs=["hello world"], signing_keys=["beta"], task_id="1", repo="repo"
     )
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
         with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
@@ -658,7 +697,7 @@ def test_clear_sign_aliases(patched_uuid, f_config_msg_signer_aliases):
                 signer_results=MsgSignerResults(status="ok", error_message=""),
                 operation_result=ClearSignResult(
                     outputs=["signed:'hello world'"],
-                    signing_key="beta",
+                    signing_keys=["beta"],
                 ),
             )
 
@@ -666,7 +705,7 @@ def test_clear_sign_aliases(patched_uuid, f_config_msg_signer_aliases):
 @patch("uuid.uuid4", return_value="1234-5678-abcd-efgh")
 def test_clear_sign_recv_errors(patched_uuid, f_config_msg_signer_ok):
     clear_sign_operation = ClearSignOperation(
-        inputs=["hello world"], signing_key="test-signing-key", task_id="1", repo="repo"
+        inputs=["hello world"], signing_keys=["test-signing-key"], task_id="1", repo="repo"
     )
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
         with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
@@ -688,14 +727,14 @@ def test_clear_sign_recv_errors(patched_uuid, f_config_msg_signer_ok):
                 signer_results=MsgSignerResults(
                     status="error", error_message="TestError : test error description\n"
                 ),
-                operation_result=ClearSignResult(outputs=[""], signing_key="test-signing-key"),
+                operation_result=ClearSignResult(outputs=[""], signing_keys=["test-signing-key"]),
             )
 
 
 @patch("uuid.uuid4", return_value="1234-5678-abcd-efgh")
 def test_clear_sign_send_errors(patched_uuid, f_config_msg_signer_ok):
     clear_sign_operation = ClearSignOperation(
-        inputs=["hello world"], signing_key="test-signing-key", task_id="1", repo="repo"
+        inputs=["hello world"], signing_keys=["test-signing-key"], task_id="1", repo="repo"
     )
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
         with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
@@ -717,7 +756,7 @@ def test_clear_sign_send_errors(patched_uuid, f_config_msg_signer_ok):
                 signer_results=MsgSignerResults(
                     status="error", error_message="TestError : test error description\n"
                 ),
-                operation_result=ClearSignResult(outputs=[""], signing_key="test-signing-key"),
+                operation_result=ClearSignResult(outputs=[""], signing_keys=["test-signing-key"]),
             )
 
 
@@ -729,7 +768,7 @@ def test_container_sign(
         task_id="1",
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag"],
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
     )
 
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
@@ -768,7 +807,68 @@ def test_container_sign(
                             {"fake": "headers"},
                         )
                     ],
-                    signing_key="test-signing-key",
+                    signing_keys=["test-signing-key"],
+                    failed=False,
+                ),
+            )
+
+
+@patch("uuid.uuid4", side_effect=["1234-5678-abcd-efgh", "2234-5678-abcd-efgh"])
+def test_container_sign_multiple_signing_keys(
+    patched_uuid, f_config_msg_signer_ok, f_client_certificate, f_ca_certificate
+):
+    container_sign_operation = ContainerSignOperation(
+        task_id="1",
+        digests=["sha256:abcdefg"],
+        references=["some-registry/namespace/repo:tag"],
+        signing_keys=["test-signing-key", "test-signing-key2"],
+    )
+
+    with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
+        with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
+            patched_send_client.return_value.run.return_value = []
+            patched_recv_client.return_value.run.return_value = []
+            patched_recv_client.return_value.recv = {
+                "1234-5678-abcd-efgh": (
+                    {"msg": {"errors": [], "signed_claim": "signed:'claim1'"}},
+                    {"fake": "headers"},
+                ),
+                "2234-5678-abcd-efgh": (
+                    {"msg": {"errors": [], "signed_claim": "signed:'claim2'"}},
+                    {"fake": "headers"},
+                ),
+            }
+            patched_recv_client.return_value.get_errors.return_value = []
+
+            signer = MsgSigner()
+            signer.load_config(load_config(f_config_msg_signer_ok))
+            res = signer.container_sign(container_sign_operation)
+
+            patched_send_client.assert_called_with(
+                messages=[ANY, ANY],
+                broker_urls=["amqps://broker-01:5671", "amqps://broker-02:5671"],
+                cert=f_client_certificate,
+                ca_cert=f_ca_certificate,
+                retries=3,
+                errors=patched_recv_client.return_value.get_errors.return_value,
+            )
+
+            assert res == SigningResults(
+                signer=signer,
+                operation=container_sign_operation,
+                signer_results=MsgSignerResults(status="ok", error_message=""),
+                operation_result=ContainerSignResult(
+                    results=[
+                        (
+                            {"msg": {"errors": [], "signed_claim": "signed:'claim1'"}},
+                            {"fake": "headers"},
+                        ),
+                        (
+                            {"msg": {"errors": [], "signed_claim": "signed:'claim2'"}},
+                            {"fake": "headers"},
+                        ),
+                    ],
+                    signing_keys=["test-signing-key", "test-signing-key2"],
                     failed=False,
                 ),
             )
@@ -780,7 +880,7 @@ def test_container_sign_alias(patched_uuid, f_config_msg_signer_aliases, f_clien
         task_id="1",
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag"],
-        signing_key="beta",
+        signing_keys=["beta"],
     )
 
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
@@ -834,7 +934,7 @@ def test_container_sign_alias(patched_uuid, f_config_msg_signer_aliases, f_clien
                             {"fake": "headers"},
                         )
                     ],
-                    signing_key="beta",
+                    signing_keys=["beta"],
                     failed=False,
                 ),
             )
@@ -846,7 +946,7 @@ def test_container_sign_recv_errors(patched_uuid, f_config_msg_signer_ok):
         task_id="1",
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag"],
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
     )
 
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
@@ -870,7 +970,7 @@ def test_container_sign_recv_errors(patched_uuid, f_config_msg_signer_ok):
                     status="error", error_message="TestError : test error description\n"
                 ),
                 operation_result=ContainerSignResult(
-                    results=[""], signing_key="test-signing-key", failed=False
+                    results=[""], signing_keys=["test-signing-key"], failed=False
                 ),
             )
 
@@ -881,7 +981,7 @@ def test_container_sign_send_errors(patched_uuid, f_config_msg_signer_ok):
         task_id="1",
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag"],
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
     )
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
         with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
@@ -904,7 +1004,7 @@ def test_container_sign_send_errors(patched_uuid, f_config_msg_signer_ok):
                     status="error", error_message="TestError : test error description\n"
                 ),
                 operation_result=ContainerSignResult(
-                    results=[""], signing_key="test-signing-key", failed=False
+                    results=[""], signing_keys=["test-signing-key"], failed=False
                 ),
             )
 
@@ -915,7 +1015,7 @@ def test_container_sign_wrong_inputs(patched_uuid, f_config_msg_signer_ok):
         task_id="1",
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag", "some-registry/namespace/repo:tag2"],
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
     )
 
     signer = MsgSigner()
@@ -930,7 +1030,7 @@ def test_container_sign_recv_timeout_fails(patched_uuid, f_config_msg_signer_ok)
         task_id="1",
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag"],
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
     )
 
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
@@ -976,7 +1076,7 @@ def test_container_sign_recv_timeout_fails(patched_uuid, f_config_msg_signer_ok)
                     "MessagingTimeout : Out of time when receiving messages\n",
                 ),
                 operation_result=ContainerSignResult(
-                    results=[""], signing_key="test-signing-key", failed=False
+                    results=[""], signing_keys=["test-signing-key"], failed=False
                 ),
             )
 
@@ -987,7 +1087,7 @@ def test_container_sign_recv_timeout_ok(patched_uuid, f_config_msg_signer_ok):
         task_id="1",
         digests=["sha256:abcdefg"],
         references=["some-registry/namespace/repo:tag"],
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
     )
 
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
@@ -1028,7 +1128,7 @@ def test_container_sign_recv_timeout_ok(patched_uuid, f_config_msg_signer_ok):
                             {"fake": "headers"},
                         )
                     ],
-                    signing_key="test-signing-key",
+                    signing_keys=["test-signing-key"],
                     failed=False,
                 ),
             )
@@ -1037,7 +1137,7 @@ def test_container_sign_recv_timeout_ok(patched_uuid, f_config_msg_signer_ok):
 @patch("uuid.uuid4", return_value="1234-5678-abcd-efgh")
 def test_clear_sign_recv_timeout(patched_uuid, f_config_msg_signer_ok):
     clear_sign_operation = ClearSignOperation(
-        inputs=["hello world"], signing_key="test-signing-key", task_id="1", repo="repo"
+        inputs=["hello world"], signing_keys=["test-signing-key"], task_id="1", repo="repo"
     )
 
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
@@ -1077,7 +1177,7 @@ def test_clear_sign_recv_timeout(patched_uuid, f_config_msg_signer_ok):
                     error_message="MessagingTimeout : Out of time when receiving messages\n"
                     "MessagingTimeout : Out of time when receiving messages\n",
                 ),
-                operation_result=ClearSignResult(outputs=[""], signing_key="test-signing-key"),
+                operation_result=ClearSignResult(outputs=[""], signing_keys=["test-signing-key"]),
             )
 
 
@@ -1095,7 +1195,7 @@ def test_recv_client_recv_message_break(
     container_sign_operation = ContainerSignOperation(
         digests=("some-digest",),
         references=("some/reference:some-tag",),
-        signing_key="test-signing-key",
+        signing_keys=["test-signing-key"],
         task_id="1",
     )
     with patch(
@@ -1144,7 +1244,7 @@ def test_recv_client_recv_message_break(
                 error_message="MessagingTimeout : Out of time when receiving messages\n",
             ),
             operation_result=ContainerSignResult(
-                results=[""], signing_key="test-signing-key", failed=False
+                results=[""], signing_keys=["test-signing-key"], failed=False
             ),
         )
 

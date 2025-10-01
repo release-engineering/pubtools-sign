@@ -251,12 +251,9 @@ class CosignSigner(Signer):
         signer_results = CosignSignerResults(status="ok", error_message="")
 
         operation_result = ContainerSignResult(
-            signing_key=operation.signing_key, results=[], failed=False
+            signing_keys=operation.signing_keys, results=[], failed=False
         )
-        signing_key = operation.signing_key
-        if signing_key in self.key_aliases:
-            signing_key = self.key_aliases[signing_key]
-            LOG.info(f"Using signing key alias {signing_key} for {operation.signing_key}")
+        signing_keys = operation.signing_keys
 
         signing_results = SigningResults(
             signer=self,
@@ -265,85 +262,98 @@ class CosignSigner(Signer):
             operation_result=operation_result,
         )
 
-        ref_args_group: dict[str, List[Tuple[List[str], Dict[str, Any]]]] = {}
-        common_args = [
-            self.cosign_bin,
-            "-t",
-            self.timeout,
-            "sign",
-            "-y",
-            "--key",
-            signing_key,
-            "--allow-http-registry=%s" % ("true" if self.allow_http_registry else "false"),
-            "--allow-insecure-registry=%s" % ("true" if self.allow_insecure_registry else "false"),
-            "--rekor-url",
-            self.rekor_url,
-            "--tlog-upload=%s" % ("true" if self.upload_tlog else "false"),
-        ]
-        if self.registry_user:
-            common_args += ["--registry-username", self.registry_user]
-        if self.registry_password:
-            common_args += ["--registry-password", self.registry_password]
-        env_vars = os.environ.copy()
-        env_vars.update(self.env_variables)
-        if operation.references:
-            for ref, identity, digest in itertools.zip_longest(
-                operation.references, operation.identity_references, operation.digests, fillvalue=""
-            ):
-                args = []
-                named_args = {}
-                if identity:
-                    args = ["--sign-container-identity", identity]
-                    named_args["identity"] = identity
-                repo, tag = ref.rsplit(":", 1)
-                args.extend(["-a", f"tag={tag}", f"{repo}@{digest}"])
-                named_args["tag"] = tag
-                # To avoid conflict caused by running in parallel for the same reference, group
-                # args by reference.
-                ref_digest = f"{repo}@{digest}"
-                named_args["ref_digest"] = digest
-
-                ref_args_group.setdefault(ref_digest, [])
-                ref_args_group[ref_digest].append((args, named_args))
-
-        else:
-            for ref_digest, identity in itertools.zip_longest(
-                operation.digests, operation.identity_references, fillvalue=""
-            ):
-                args = []
-                named_args = {}
-                if identity:
-                    args = ["--sign-container-identity", identity]
-                    named_args["identity"] = identity
-                named_args["ref_digest"] = ref_digest
-                args.append(ref_digest)
-                ref_args_group.setdefault(ref_digest, [])
-                ref_args_group[ref_digest].append((args, named_args))
-
-        # Execute cosign commands serially in each group while running groups concurrently.
-        ret = run_in_parallel(
-            lambda args_group, **kwargs: [
-                self._sign_container(common_args + args, env=env_vars, tries=self.retries, **kwargs)
-                for args, kwargs in args_group
-            ],
-            [
-                FData(
-                    args=[args_group],
-                )
-                for args_group in ref_args_group.values()
-            ],
-            self.num_threads,
-        )
-
-        for stdout, stderr, returncode in itertools.chain(*ret.values()):
-            if returncode != 0:
-                operation_result.results.append(stderr)
-                operation_result.failed = True
-                signing_results.signer_results.status = "failed"
-                signing_results.signer_results.error_message += stderr
+        for _signing_key in signing_keys:
+            if _signing_key in self.key_aliases:
+                signing_key = self.key_aliases[_signing_key]
+                LOG.info(f"Using signing key alias {signing_key} for {_signing_key}")
             else:
-                operation_result.results.append(stderr)
-        signing_results.operation_result = operation_result
+                signing_key = _signing_key
+
+            ref_args_group: dict[str, List[Tuple[List[str], Dict[str, Any]]]] = {}
+            common_args = [
+                self.cosign_bin,
+                "-t",
+                self.timeout,
+                "sign",
+                "-y",
+                "--key",
+                signing_key,
+                "--allow-http-registry=%s" % ("true" if self.allow_http_registry else "false"),
+                "--allow-insecure-registry=%s"
+                % ("true" if self.allow_insecure_registry else "false"),
+                "--rekor-url",
+                self.rekor_url,
+                "--tlog-upload=%s" % ("true" if self.upload_tlog else "false"),
+            ]
+            if self.registry_user:
+                common_args += ["--registry-username", self.registry_user]
+            if self.registry_password:
+                common_args += ["--registry-password", self.registry_password]
+            env_vars = os.environ.copy()
+            env_vars.update(self.env_variables)
+            if operation.references:
+                for ref, identity, digest in itertools.zip_longest(
+                    operation.references,
+                    operation.identity_references,
+                    operation.digests,
+                    fillvalue="",
+                ):
+                    args = []
+                    named_args = {}
+                    if identity:
+                        args = ["--sign-container-identity", identity]
+                        named_args["identity"] = identity
+                    repo, tag = ref.rsplit(":", 1)
+                    args.extend(["-a", f"tag={tag}", f"{repo}@{digest}"])
+                    named_args["tag"] = tag
+                    # To avoid conflict caused by running in parallel for the same reference, group
+                    # args by reference.
+                    ref_digest = f"{repo}@{digest}"
+                    named_args["ref_digest"] = digest
+
+                    ref_args_group.setdefault(ref_digest, [])
+                    ref_args_group[ref_digest].append((args, named_args))
+
+            else:
+                for ref_digest, identity in itertools.zip_longest(
+                    operation.digests, operation.identity_references, fillvalue=""
+                ):
+                    args = []
+                    named_args = {}
+                    if identity:
+                        args = ["--sign-container-identity", identity]
+                        named_args["identity"] = identity
+                    named_args["ref_digest"] = ref_digest
+                    args.append(ref_digest)
+                    ref_args_group.setdefault(ref_digest, [])
+                    ref_args_group[ref_digest].append((args, named_args))
+
+            # Execute cosign commands serially in each group while running groups concurrently.
+            ret = run_in_parallel(
+                lambda args_group, **kwargs: [
+                    self._sign_container(
+                        common_args + args, env=env_vars, tries=self.retries, **kwargs
+                    )
+                    for args, kwargs in args_group
+                ],
+                [
+                    FData(
+                        args=[args_group],
+                    )
+                    for args_group in ref_args_group.values()
+                ],
+                self.num_threads,
+            )
+
+            for stdout, stderr, returncode in itertools.chain(*ret.values()):
+                if returncode != 0:
+                    operation_result.results.append(stderr)
+                    operation_result.failed = True
+                    signing_results.signer_results.status = "failed"
+                    signing_results.signer_results.error_message += stderr
+                else:
+                    operation_result.results.append(stderr)
+            signing_results.operation_result = operation_result
         return signing_results
 
     def existing_signatures(self, reference: str) -> Tuple[bool, str]:
@@ -387,7 +397,7 @@ class CosignSigner(Signer):
 
 
 def cosign_container_sign(
-    signing_key: str = "",
+    signing_keys: List[str] = [],
     config_file: str = "",
     digest: List[str] = [],
     reference: List[str] = [],
@@ -412,7 +422,7 @@ def cosign_container_sign(
         digests=digest,
         references=reference,
         identity_references=identity,
-        signing_key=signing_key,
+        signing_keys=signing_keys,
         task_id="",
     )
     signing_result = cosign_signer.sign(operation)
@@ -420,7 +430,7 @@ def cosign_container_sign(
         "signer_result": signing_result.signer_results.to_dict(),
         "operation_results": signing_result.operation_result.results,
         "operation": signing_result.operation.to_dict(),
-        "signing_key": signing_result.operation_result.signing_key,
+        "signing_keys": signing_result.operation_result.signing_keys,
     }
 
 
@@ -454,7 +464,7 @@ def cosign_container_sign(
 )
 @click.option("--raw", default=False, is_flag=True, help="Print raw output instead of json")
 def cosign_container_sign_main(
-    signing_key: str = "",
+    signing_key: List[str] = [],
     config_file: str = "",
     digest: List[str] = [],
     reference: List[str] = [],
@@ -463,7 +473,7 @@ def cosign_container_sign_main(
 ) -> None:
     """Entry point method for containersign operation."""
     ret = cosign_container_sign(
-        signing_key=signing_key,
+        signing_keys=signing_key,
         config_file=config_file,
         digest=digest,
         reference=reference,

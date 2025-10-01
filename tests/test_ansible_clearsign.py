@@ -56,7 +56,7 @@ def test_run_module_ok(clear_sign_mock, f_config_msg_signer_ok):
 
     parameters = {
         "inputs": ["hello world"],
-        "signing_key": "test-signing-key",
+        "signing_keys": ["test-signing-key"],
         "task_id": "1",
         "config_file": f_config_msg_signer_ok,
         "repo": "repo",
@@ -64,7 +64,7 @@ def test_run_module_ok(clear_sign_mock, f_config_msg_signer_ok):
 
     clear_sign_operation = ClearSignOperation(
         inputs=parameters["inputs"],
-        signing_key=parameters["signing_key"],
+        signing_keys=parameters["signing_keys"],
         task_id="1",
         repo="repo",
     )
@@ -74,7 +74,7 @@ def test_run_module_ok(clear_sign_mock, f_config_msg_signer_ok):
         operation=clear_sign_operation,
         signer_results=MsgSignerResults(status="ok", error_message=""),
         operation_result=ClearSignResult(
-            outputs=["signed:'hello world'"], signing_key="test-signing-key"
+            outputs=["signed:'hello world'"], signing_keys=["test-signing-key"]
         ),
     )
 
@@ -91,8 +91,8 @@ def test_run_module_ok(clear_sign_mock, f_config_msg_signer_ok):
         == clear_sign_mock.return_value.operation_result.outputs
     )
     assert (
-        result.value.args[0]["message"]["signing_key"]
-        == clear_sign_mock.return_value.operation_result.signing_key
+        result.value.args[0]["message"]["signing_keys"]
+        == clear_sign_mock.return_value.operation_result.signing_keys
     )
 
 
@@ -104,7 +104,7 @@ def test_run_module_failed(clear_sign_mock, f_config_msg_signer_ok):
 
     parameters = {
         "inputs": [f"@{f_config_msg_signer_ok}"],
-        "signing_key": "test-signing-key",
+        "signing_keys": ["test-signing-key"],
         "task_id": "1",
         "config_file": f_config_msg_signer_ok,
         "repo": "repo",
@@ -112,7 +112,7 @@ def test_run_module_failed(clear_sign_mock, f_config_msg_signer_ok):
 
     clear_sign_operation = ClearSignOperation(
         inputs=parameters["inputs"],
-        signing_key=parameters["signing_key"],
+        signing_keys=parameters["signing_keys"],
         task_id="1",
         repo="repo",
     )
@@ -122,7 +122,7 @@ def test_run_module_failed(clear_sign_mock, f_config_msg_signer_ok):
         operation=clear_sign_operation,
         signer_results=MsgSignerResults(status="failed", error_message=""),
         operation_result=ClearSignResult(
-            outputs=["signed:'hello world'"], signing_key="test-signing-key"
+            outputs=["signed:'hello world'"], signing_keys=["test-signing-key"]
         ),
     )
 
@@ -138,7 +138,7 @@ def test_run_module_exception(sign_mock, f_config_msg_signer_ok):
     sign_mock.side_effect = [ValueError("No configuration file found ...")]
     parameters = {
         "inputs": ["hello world"],
-        "signing_key": "test-signing-key",
+        "signing_keys": ["test-signing-key"],
         "task_id": "1",
         "repo": "repo",
         "config_file": f_config_msg_signer_ok,
@@ -154,7 +154,7 @@ def test_run_module_exception(sign_mock, f_config_msg_signer_ok):
 def test_run_module_check_mode(sign_mock, f_config_msg_signer_ok):
     parameters = {
         "inputs": ["hello world"],
-        "signing_key": "test-signing-key",
+        "signing_keys": ["test-signing-key"],
         "task_id": "1",
         "config_file": f_config_msg_signer_ok,
         "_ansible_check_mode": True,

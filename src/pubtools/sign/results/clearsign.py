@@ -12,15 +12,15 @@ class ClearSignResult(OperationResult):
 
     Attributes:
         outputs (List[str]): List of signing result outputs.
-        signing_key (str): The signing key used during signing.
+        signing_keys (List[str]): List of signing keys used during signing.
     """
 
     outputs: List[str]
-    signing_key: str
+    signing_keys: List[str]
 
     def to_dict(self: Self) -> Dict[Any, Any]:
         """Return dict representation of ClearOperationResult."""
-        return {"outputs": self.outputs, "signing_key": self.signing_key}
+        return {"outputs": self.outputs, "signing_keys": self.signing_keys}
 
     @classmethod
     def doc_arguments(cls: Type[Self]) -> Dict[str, Any]:
@@ -32,11 +32,11 @@ class ClearSignResult(OperationResult):
                 "returned": "always",
                 "sample": ["signed:'hello world'"],
             },
-            "signing_key": {
-                "type": "str",
-                "description": "The signing key which is used during signing.",
+            "signing_keys": {
+                "type": "list",
+                "description": "The signing keys which is used during signing.",
                 "returned": "always",
-                "sample": "123",
+                "sample": ["123"],
             },
         }
 

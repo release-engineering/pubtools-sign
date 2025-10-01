@@ -23,15 +23,6 @@ class ClearSignOperation(SignOperation):
         },
         default_factory=list,
     )
-    signing_key: str = field(
-        metadata={
-            "type": "str",
-            "description": "Signing key short id which should be used for signing",
-            "required": "true",
-            "sample": "123",
-        },
-        default="",
-    )
     task_id: str = field(
         metadata={
             "type": "str",
@@ -58,7 +49,7 @@ class ClearSignOperation(SignOperation):
         """Return a dict representation of the object."""
         return dict(
             inputs=self.inputs,
-            signing_key=self.signing_key,
+            signing_keys=self.signing_keys,
             task_id=self.task_id,
             repo=self.repo,
             requester=self.requester,

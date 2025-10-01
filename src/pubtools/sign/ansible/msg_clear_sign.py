@@ -69,7 +69,7 @@ def run_module() -> None:
     # Define available arguments/parameters a user can pass to the module
     module_args = dict(
         inputs=dict(type="list", required=True),
-        signing_key=dict(type="str", required=True),
+        signing_keys=dict(type="list", required=True),
         task_id=dict(type="str", required=True),
         repo=dict(type="str", required=True),
         config_file=dict(type="str", required=False),
@@ -85,7 +85,7 @@ def run_module() -> None:
         module.exit_json(**result)
 
     inputs = module.params["inputs"]
-    signing_key = module.params["signing_key"]
+    signing_keys = module.params["signing_keys"]
     task_id = module.params["task_id"]
     config_file = module.params["config_file"]
     repo = module.params["repo"]
@@ -93,7 +93,7 @@ def run_module() -> None:
     # Call clear sign and return signed data
     try:
         signing_result = msg_clear_sign(
-            inputs, signing_key=signing_key, task_id=task_id, config_file=config_file, repo=repo
+            inputs, signing_keys=signing_keys, task_id=task_id, config_file=config_file, repo=repo
         )
     except Exception as ex:
         module.fail_json(msg=str(ex), exception=ex)
