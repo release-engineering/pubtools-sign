@@ -7,7 +7,7 @@ CONFIG_PATHS = ["~/.config/pubtools-sign/conf.yaml", "/etc/pubtools-sign/conf.ya
 
 
 class MsgSignerSchema(ma.Schema):
-    """Radas signer configuration schema."""
+    """Msg signer configuration schema."""
 
     messaging_brokers = ma.fields.List(ma.fields.String(), required=True)
     messaging_cert_key = ma.fields.String(required=True)
@@ -22,6 +22,12 @@ class MsgSignerSchema(ma.Schema):
     message_id_key = ma.fields.String(required=True)
     log_level = ma.fields.String(required=False)
     key_aliases = ma.fields.Dict(required=False, keys=ma.fields.String(), values=ma.fields.String())
+
+
+class MsgBatchSignerSchema(MsgSignerSchema):
+    """Msg batch signer configuration schema."""
+
+    chunk_size = ma.fields.Integer(required=False)
 
 
 class CosignSignerSchema(ma.Schema):
@@ -46,6 +52,7 @@ class ConfigSchema(ma.Schema):
     """pubtools-sign configuration schema."""
 
     msg_signer = ma.fields.Nested(MsgSignerSchema)
+    msg_batch_signer = ma.fields.Nested(MsgBatchSignerSchema)
     cosign_signer = ma.fields.Nested(CosignSignerSchema)
 
 

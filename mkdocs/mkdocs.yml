@@ -11,6 +11,7 @@ nav:
       - 'user-guide/config.md'
       - 'user-guide/cli-commands.md'
       - 'user-guide/container-signing.md'
+      - 'user-guide/clear-sign.md'
       - 'user-guide/signers/cosign-signer.md'
       - 'user-guide/signers/msg-signer.md'
   - 'developer/developer-guide.md'

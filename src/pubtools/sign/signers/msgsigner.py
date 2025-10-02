@@ -448,6 +448,26 @@ class MsgSigner(Signer):
         }
         return base64.b64encode(json.dumps(manifest_claim).encode("latin1")).decode("latin1")
 
+    def _prepare_messages(self, operation: ContainerSignOperation) -> List[List[MsgMessage]]:
+        fargs = []
+        for digest, reference in zip(operation.digests, operation.references):
+            repo = reference.split("/", 1)[1].split(":")[0]
+            fargs.append(
+                FData(
+                    args=[
+                        self.create_manifest_claim_message(digest=digest, reference=reference),
+                        repo,
+                        operation,
+                        SignRequestType.CONTAINER,
+                    ],
+                    kwargs={
+                        "extra_attrs": {"pub_task_id": operation.task_id, "manifest_digest": digest}
+                    },
+                )
+            )
+        ret = run_in_parallel(self._create_msg_messages, fargs)
+        return list(ret.values())
+
     def container_sign(self: MsgSigner, operation: ContainerSignOperation) -> SigningResults:
         """Run container signing operation.
 
@@ -476,24 +496,9 @@ class MsgSigner(Signer):
 
         LOG.info(f"Container sign operation for {len(operation.digests)}")
 
-        fargs = []
-        for digest, reference in zip(operation.digests, operation.references):
-            repo = reference.split("/", 1)[1].split(":")[0]
-            fargs.append(
-                FData(
-                    args=[
-                        self.create_manifest_claim_message(digest=digest, reference=reference),
-                        repo,
-                        operation,
-                        SignRequestType.CONTAINER,
-                    ],
-                    kwargs={
-                        "extra_attrs": {"pub_task_id": operation.task_id, "manifest_digest": digest}
-                    },
-                )
-            )
-        ret = run_in_parallel(self._create_msg_messages, fargs)
-        for n, _key_messages in ret.items():
+        ret = self._prepare_messages(operation)
+
+        for _key_messages in ret:
             for message in _key_messages:
                 message_to_data[message.body["request_id"]] = message
                 messages.append(message)
@@ -613,6 +618,175 @@ class MsgSigner(Signer):
         return signing_results
 
 
+class MsgBatchSigner(MsgSigner):
+    """Messaging batch signer class."""
+
+    _signer_config_key: str = "msg_batch_signer"
+
+    chunk_size: int = field(
+        init=False,
+        metadata={
+            "description": "Identify how many signing claims should be send in one message",
+            "sample": 10,
+        },
+    )
+
+    SUPPORTED_OPERATIONS: ClassVar[List[Type[SignOperation]]] = [
+        ContainerSignOperation,
+    ]
+
+    def _construct_signing_batch_message(
+        self: Self,
+        claims: List[str],
+        signing_keys: List[str],
+        repo: str,
+        signing_key_names: List[str] = [],
+        extra_attrs: Optional[Dict[str, Any]] = None,
+        sig_type: str = SignRequestType.CONTAINER,
+    ) -> dict[str, Any]:
+        data_attr = "claims" if sig_type == SignRequestType.CONTAINER else "data"
+        _extra_attrs = extra_attrs or {}
+        processed_claims = [
+            {
+                "claim_file": claim,
+                "sig_keyname": signing_key_names,
+                "sig_key_id": signing_keys,
+                "manifest_digest": digest,
+            }
+            for claim, digest in zip(claims, _extra_attrs.get("manifest_digest", ""))
+        ]
+        message = {
+            data_attr: processed_claims,
+            "request_id": str(uuid.uuid4()),
+            "created": isodate_now(),
+            "requested_by": self.creator,
+            "repo": repo,
+        }
+        _extra_attrs.pop("manifest_digest", None)
+        message.update(_extra_attrs)
+        return message
+
+    def _create_msg_batch_message(
+        self: Self,
+        data: List[str],
+        repo: str,
+        operation: SignOperation,
+        sig_type: SignRequestType,
+        extra_attrs: Optional[Dict[str, Any]] = None,
+    ) -> List[MsgMessage]:
+        messages = []
+        signing_keys = []
+        for _signing_key in operation.signing_keys:
+            if _signing_key in self.key_aliases:
+                signing_keys.append(self.key_aliases[_signing_key])
+                LOG.info(
+                    f"Using signing key alias {self.key_aliases[_signing_key]} for {_signing_key}"
+                )
+            else:
+                signing_keys.append(_signing_key)
+
+        extra_attrs = extra_attrs or {}
+        headers = self._construct_headers(sig_type, extra_attrs=extra_attrs)
+        if isinstance(operation, ContainerSignOperation):
+            extra_attrs["manifest_digest"] = operation.digests
+        ret = MsgMessage(
+            headers=headers,
+            body=self._construct_signing_batch_message(
+                data,
+                signing_keys,
+                repo,
+                signing_key_names=(
+                    operation.signing_key_names
+                    if operation.signing_key_names
+                    else ["" * len(signing_keys)]
+                ),
+                extra_attrs=extra_attrs,
+                sig_type=sig_type.value,
+            ),
+            address=self.topic_send_to.format(
+                **dict(list(asdict(self).items()) + list(asdict(operation).items()))
+            ),
+        )
+        LOG.debug(f"Construted message with request_id {ret.body['request_id']}")
+        messages.append(ret)
+        return messages
+
+    def _prepare_messages(self: Self, operation: ContainerSignOperation) -> List[List[MsgMessage]]:
+        messages: List[List[MsgMessage]] = []
+        repo_groups: Dict[str, Dict[str, List[str]]] = {}
+        for digest, reference in zip(operation.digests, operation.references):
+            repo = reference.split("/", 1)[1].split(":")[0]
+            if repo not in repo_groups:
+                repo_groups[repo] = cast(dict[str, list[str]], {"digests": [], "references": []})
+            repo_groups[repo]["digests"].append(digest)
+            repo_groups[repo]["references"].append(reference)
+
+        batch_data: List[FData] = []
+        for repo, group in repo_groups.items():
+            claims = []
+            digests = []
+
+            for digest, reference in zip(group["digests"], group["references"]):
+                claims.append(
+                    self.create_manifest_claim_message(digest=digest, reference=reference)
+                )
+                digests.append(digest)
+                if len(claims) >= self.chunk_size:
+                    fdata = FData(
+                        args=[claims, repo, operation, SignRequestType.CONTAINER],
+                        kwargs={
+                            "extra_attrs": {
+                                "pub_task_id": operation.task_id,
+                                "manifest_digest": digests,
+                            }
+                        },
+                    )
+                    batch_data.append(fdata)
+                    claims = []
+                    digests = []
+            if claims:
+                fdata = FData(
+                    args=[claims, repo, operation, SignRequestType.CONTAINER],
+                    kwargs={
+                        "extra_attrs": {
+                            "pub_task_id": operation.task_id,
+                            "manifest_digest": digests,
+                        }
+                    },
+                )
+                batch_data.append(fdata)
+
+            ret = run_in_parallel(self._create_msg_batch_message, batch_data)
+            messages.extend(list(ret.values()))
+        return messages
+
+    def load_config(self: Self, config_data: Dict[str, Any]) -> None:
+        """Load configuration of messaging signer.
+
+        Arguments:
+            config_data (dict): configuration data to load
+        """
+        self.messaging_brokers = config_data["msg_batch_signer"]["messaging_brokers"]
+        self.messaging_cert_key = os.path.expanduser(
+            config_data["msg_batch_signer"]["messaging_cert_key"]
+        )
+        self.messaging_ca_cert = os.path.expanduser(
+            config_data["msg_batch_signer"]["messaging_ca_cert"]
+        )
+        self.topic_send_to = config_data["msg_batch_signer"]["topic_send_to"]
+        self.topic_listen_to = config_data["msg_batch_signer"]["topic_listen_to"]
+        self.environment = config_data["msg_batch_signer"]["environment"]
+        self.service = config_data["msg_batch_signer"]["service"]
+        self.message_id_key = config_data["msg_batch_signer"]["message_id_key"]
+        self.retries = config_data["msg_batch_signer"]["retries"]
+        self.send_retries = config_data["msg_batch_signer"]["send_retries"]
+        self.log_level = config_data["msg_batch_signer"]["log_level"]
+        self.timeout = config_data["msg_batch_signer"]["timeout"]
+        self.creator = self._get_cert_subject_cn()
+        self.key_aliases = config_data["msg_batch_signer"].get("key_aliases", {})
+        self.chunk_size = config_data["msg_batch_signer"]["chunk_size"]
+
+
 def msg_clear_sign(
     inputs: List[str],
     signing_keys: List[str] = [],
@@ -671,9 +845,14 @@ def msg_container_sign(
     digest: list[str] = [],
     reference: list[str] = [],
     requester: str = "",
+    signer_type: str = "single",
 ) -> Dict[str, Any]:
     """Run containersign operation with cli arguments."""
-    msg_signer = MsgSigner()
+    if signer_type == "single":
+        msg_signer = MsgSigner()
+    elif signer_type == "batch":
+        msg_signer = MsgBatchSigner()
+
     config = _get_config_file(config_file)
     msg_signer.load_config(load_config(os.path.expanduser(config)))
     if requester:
@@ -819,6 +998,9 @@ def msg_clear_sign_main(
     default="INFO",
     help="Set log level",
 )
+@click.option(
+    "--signer-type", type=click.Choice(["single", "batch"]), default="single", help="Signer type"
+)
 def msg_container_sign_main(
     signing_key: List[str] = [],
     signing_key_name: List[str] = [],
@@ -829,6 +1011,7 @@ def msg_container_sign_main(
     requester: str = "",
     raw: bool = False,
     log_level: str = "INFO",
+    signer_type: str = "single",
 ) -> None:
     """Entry point method for containersign operation.
 
@@ -856,6 +1039,7 @@ def msg_container_sign_main(
         digest=digest,
         reference=reference,
         requester=requester,
+        signer_type=signer_type,
     )
     if not raw:
         click.echo(json.dumps(ret))
