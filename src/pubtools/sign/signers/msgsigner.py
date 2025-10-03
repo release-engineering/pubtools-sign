@@ -852,6 +852,10 @@ def msg_container_sign(
         msg_signer = MsgSigner()
     elif signer_type == "batch":
         msg_signer = MsgBatchSigner()
+    else:
+        raise ValueError(
+            f"Unsupported signer_type '{signer_type}'. Supported values are: 'single', 'batch'."
+        )
 
     config = _get_config_file(config_file)
     msg_signer.load_config(load_config(os.path.expanduser(config)))
