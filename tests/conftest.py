@@ -16,6 +16,10 @@ from .conftest_msgsig import (  # noqa: F401
     f_config_msg_signer_ok,  # noqa: F401
     f_config_msg_signer_ok2,  # noqa: F401
     f_config_msg_signer_aliases,  # noqa: F401
+    f_msg_batch_signer,  # noqa: F401
+    f_config_msg_batch_signer_ok,  # noqa: F401
+    f_config_msg_batch_signer_aliases,  # noqa: F401
+    f_config_msg_batch_signer_ok2,  # noqa: F401
 )  # noqa: F401
 from .conftest_cosignsig import (  # noqa: F401
     f_cosign_signer,  # noqa: F401

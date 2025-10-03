@@ -107,7 +107,7 @@ class FData:
 
 
 def run_in_parallel(
-    func: Callable[..., Any], data: List[FData], threads: int = 10
+    func: Callable[..., Any], data: Iterable[FData], threads: int = 10
 ) -> Dict[Any, Any]:
     """Run method on data in parallel.
 
