@@ -707,7 +707,7 @@ class MsgBatchSigner(MsgSigner):
                 **dict(list(asdict(self).items()) + list(asdict(operation).items()))
             ),
         )
-        LOG.debug(f"Construted message with request_id {ret.body['request_id']}")
+        LOG.debug(f"Constructed message with request_id {ret.body['request_id']}")
         messages.append(ret)
         return messages
 
