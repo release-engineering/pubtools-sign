@@ -698,7 +698,7 @@ class MsgBatchSigner(MsgSigner):
                 signing_key_names=(
                     operation.signing_key_names
                     if operation.signing_key_names
-                    else ["" * len(signing_keys)]
+                    else [""] * len(signing_keys)
                 ),
                 extra_attrs=extra_attrs,
                 sig_type=sig_type.value,
