@@ -717,7 +717,7 @@ class MsgBatchSigner(MsgSigner):
         for digest, reference in zip(operation.digests, operation.references):
             repo = reference.split("/", 1)[1].split(":")[0]
             if repo not in repo_groups:
-                repo_groups[repo] = cast(dict[str, list[str]], {"digests": [], "references": []})
+                repo_groups[repo] = {"digests": [], "references": []}
             repo_groups[repo]["digests"].append(digest)
             repo_groups[repo]["references"].append(reference)
 
