@@ -70,7 +70,7 @@ def test_msg_batch_container_sign_unsupported(f_msg_batch_signer, f_config_msg_b
             "--config-file",
             f_config_msg_batch_signer_ok,
             "--signer-type",
-            "unsuported",
+            "unsupported",
         ],
     )
     print(result.stdout)
