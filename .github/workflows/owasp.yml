@@ -20,7 +20,7 @@ jobs:
     name: depecheck_test
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v5
       - name: get version
         id: version
         run: |
