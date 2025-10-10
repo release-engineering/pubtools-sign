@@ -10,7 +10,7 @@ jobs:
       - name: Update existing dependencies
         run: sudo apt-get update -y
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: 3.9
       - name: Install Tox
@@ -24,7 +24,7 @@ jobs:
       - name: Update existing dependencies
         run: sudo apt-get update -y
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: 3.9
       - name: Install Tox
@@ -38,7 +38,7 @@ jobs:
       - name: Update existing dependencies
         run: sudo apt-get update -y
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: 3.9
       - name: Install Tox
@@ -52,7 +52,7 @@ jobs:
       - name: Update existing dependencies
         run: sudo apt-get update -y
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: 3.9
       - name: Install Tox
@@ -68,7 +68,7 @@ jobs:
       - name: Install system dependencies
         run: sudo apt-get install -y libkrb5-dev
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: 3.9
       - name: Install Tox
@@ -82,7 +82,7 @@ jobs:
       - name: Update existing dependencies
         run: sudo apt-get update -y
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: 3.9
       - name: Install Tox
@@ -103,7 +103,7 @@ jobs:
       - name: Update existing dependencies
         run: sudo apt-get update -y
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: 3.9
       - name: Install Tox
