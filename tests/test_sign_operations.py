@@ -1,6 +1,7 @@
 from pubtools.sign.operations import (
     ClearSignOperation,
     ContainerSignOperation,
+    BlobSignOperation,
 )
 
 
@@ -101,4 +102,20 @@ def test_clear_sign_to_dict():
         task_id="task-id",
         repo="repo",
         requester="requester",
+    )
+
+
+def test_blob_sign_to_dict():
+    assert BlobSignOperation(
+        blobs=["blob"],
+        signing_keys=["sig-key"],
+        task_id="task-id",
+        requester="requester",
+        signing_key_names=["sig-key-name"],
+    ).to_dict() == dict(
+        blobs=["blob"],
+        signing_keys=["sig-key"],
+        task_id="task-id",
+        requester="requester",
+        signing_key_names=["sig-key-name"],
     )

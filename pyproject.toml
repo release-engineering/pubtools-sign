@@ -70,6 +70,7 @@ build-backend = "hatchling.build"
 pubtools-sign-msg-clear-sign = "pubtools.sign.signers.msgsigner:msg_clear_sign_main"
 pubtools-sign-msg-container-sign = "pubtools.sign.signers.msgsigner:msg_container_sign_main"
 pubtools-sign-cosign-container-sign = "pubtools.sign.signers.cosignsigner:cosign_container_sign_main"
+pubtools-sign-msg-blob-sign = "pubtools.sign.signers.msgsigner:msg_blob_sign_main"
 pubtools-sign = "pubtools.sign.bundle:cli"
 
 [project.entry-points.modules]
@@ -77,3 +78,4 @@ pubtools-sign-msg-clear-sign = "pubtools.sign.signers.msgsigner:msg_clear_sign"
 pubtools-sign-msg-container-sign = "pubtools.sign.signers.msgsigner:msg_container_sign"
 pubtools-sign-cosign-signature-list = "pubtools.sign.signers.cosignsigner:cosign_list_existing_signatures"
 pubtools-sign-cosign-container-sign = "pubtools.sign.signers.cosignsigner:cosign_container_sign"
+pubtools-sign-msg-blob-sign = "pubtools.sign.signers.msgsigner:msg_blob_sign"

@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import tempfile
 
 from click.testing import CliRunner
 import pytest
@@ -14,11 +15,14 @@ from pubtools.sign.signers.msgsigner import (
     msg_clear_sign,
     ContainerSignOperation,
     ContainerSignResult,
+    BlobSignResult,
     ClearSignOperation,
+    BlobSignOperation,
     ClearSignResult,
     SignRequestType,
     msg_clear_sign_main,
     msg_container_sign_main,
+    msg_blob_sign_main,
     _get_config_file,
 )
 from pubtools.sign.conf.conf import load_config
@@ -494,7 +498,7 @@ def test__construct_headers(f_config_msg_signer_ok):
 
 def test_operations():
     signer = MsgSigner()
-    assert signer.operations() == [ContainerSignOperation, ClearSignOperation]
+    assert signer.operations() == [ContainerSignOperation, ClearSignOperation, BlobSignOperation]
 
 
 def test_create_msg_message(f_config_msg_signer_ok):
@@ -612,6 +616,7 @@ def test_clear_sign(patched_uuid, f_config_msg_signer_ok):
             patched_recv_client.return_value.run.return_value = []
             patched_recv_client.return_value.recv = {"1234-5678-abcd-efgh": "signed:'hello world'"}
             patched_recv_client.return_value._errors = []
+            patched_recv_client.return_value.get_errors.return_value = []
 
             signer = MsgSigner()
             signer.load_config(load_config(f_config_msg_signer_ok))
@@ -644,7 +649,7 @@ def test_clear_sign_multiple_signing_keys(patched_uuid, f_config_msg_signer_ok):
                 "1234-5678-abcd-efgh": "signed:'hello world'",
                 "2234-5678-abcd-efgh": "signed:'hello world2'",
             }
-            patched_recv_client.return_value._errors = []
+            patched_recv_client.return_value.get_errors.return_value = []
 
             signer = MsgSigner()
             signer.load_config(load_config(f_config_msg_signer_ok))
@@ -671,7 +676,7 @@ def test_clear_sign_aliases(patched_uuid, f_config_msg_signer_aliases):
             patched_send_client.return_value.run.return_value = []
             patched_recv_client.return_value.run.return_value = []
             patched_recv_client.return_value.recv = {"1234-5678-abcd-efgh": "signed:'hello world'"}
-            patched_recv_client.return_value._errors = []
+            patched_recv_client.return_value.get_errors.return_value = []
 
             signer = MsgSigner()
             signer.load_config(load_config(f_config_msg_signer_aliases))
@@ -710,11 +715,13 @@ def test_clear_sign_recv_errors(patched_uuid, f_config_msg_signer_ok):
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
         with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
             patched_send_client.return_value.run.return_value = []
-            patched_recv_client.return_value._errors = [
+            errors = [
                 MsgError(
                     name="TestError", description="test error description", source="test-source"
                 )
             ]
+            patched_recv_client.return_value.get_errors.return_value = errors
+            patched_recv_client.return_value._errors = errors
             patched_recv_client.return_value.recv = {"1234-5678-abcd-efgh": "signed:'hello world'"}
 
             signer = MsgSigner()
@@ -952,11 +959,13 @@ def test_container_sign_recv_errors(patched_uuid, f_config_msg_signer_ok):
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
         with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
             patched_send_client.return_value.run.return_value = []
-            patched_recv_client.return_value.get_errors.return_value = [
+            errors = [
                 MsgError(
                     name="TestError", description="test error description", source="test-source"
                 )
             ]
+            patched_recv_client.return_value._errors = errors
+            patched_recv_client.return_value.get_errors.return_value = errors
             patched_recv_client.return_value.recv = {"1234-5678-abcd-efgh": "signed:'hello world'"}
 
             signer = MsgSigner()
@@ -1036,7 +1045,7 @@ def test_container_sign_recv_timeout_fails(patched_uuid, f_config_msg_signer_ok)
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
         with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
             patched_send_client.return_value.run.return_value = []
-            patched_recv_client.return_value.get_errors.return_value = [
+            errors = [
                 MsgError(
                     name="MessagingTimeout",
                     description="Out of time when receiving messages",
@@ -1053,6 +1062,7 @@ def test_container_sign_recv_timeout_fails(patched_uuid, f_config_msg_signer_ok)
                     source="test-source",
                 ),
             ]
+            patched_recv_client.return_value.get_errors.return_value = errors
             patched_recv_client.return_value.recv = {
                 "1234-5678-abcd-efgh": (
                     {"msg": {"errors": [], "signed_claim": "signed:'claim'"}},
@@ -1093,13 +1103,15 @@ def test_container_sign_recv_timeout_ok(patched_uuid, f_config_msg_signer_ok):
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
         with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
             patched_send_client.return_value.run.return_value = []
-            patched_recv_client.return_value.get_errors.return_value = [
+            errors = [
                 MsgError(
                     name="MessagingTimeout",
                     description="Out of time when receiving messages",
                     source="test-source",
                 ),
             ]
+            patched_recv_client.return_value.get_errors.side_effect = lambda: errors
+
             patched_recv_client.return_value.recv = {
                 "1234-5678-abcd-efgh": (
                     {"msg": {"errors": [], "signed_claim": "signed:'claim'"}},
@@ -1108,10 +1120,11 @@ def test_container_sign_recv_timeout_ok(patched_uuid, f_config_msg_signer_ok):
             }
 
             signer = MsgSigner()
+
+            signer.load_config(load_config(f_config_msg_signer_ok))
             signer.retries = 2
             signer.send_retries = 1
 
-            signer.load_config(load_config(f_config_msg_signer_ok))
             res = signer.container_sign(container_sign_operation)
 
             assert res == SigningResults(
@@ -1143,7 +1156,7 @@ def test_clear_sign_recv_timeout(patched_uuid, f_config_msg_signer_ok):
     with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
         with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
             patched_send_client.return_value.run.return_value = []
-            patched_recv_client.return_value._errors = [
+            errors = [
                 MsgError(
                     name="MessagingTimeout",
                     description="Out of time when receiving messages",
@@ -1160,6 +1173,7 @@ def test_clear_sign_recv_timeout(patched_uuid, f_config_msg_signer_ok):
                     source="test-source",
                 ),
             ]
+            patched_recv_client.return_value.get_errors.return_value = errors
             patched_recv_client.return_value.recv = {"1234-5678-abcd-efgh": "signed:'hello world'"}
 
             signer = MsgSigner()
@@ -1309,3 +1323,330 @@ def test_msgsigresult_doc_arguments():
             "sample": {"status": "ok", "error_message": ""},
         }
     }
+
+
+@patch("uuid.uuid4", side_effect=["1234-5678-abcd-efgh", "2234-5678-abcd-efgh"])
+def test_blob_sign(patched_uuid, f_config_msg_signer_ok, f_client_certificate, f_ca_certificate):
+    blob_sign_operation = BlobSignOperation(
+        task_id="1",
+        blobs=[b"blob1", b"blob2"],
+        signing_keys=["test-signing-key"],
+    )
+
+    with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
+        with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
+            patched_send_client.return_value.run.return_value = []
+            patched_recv_client.return_value.run.return_value = []
+            patched_recv_client.return_value.recv = {
+                "1234-5678-abcd-efgh": (
+                    {"msg": {"errors": [], "signed_payload": "signed:'blob1'"}},
+                    {"fake": "headers"},
+                ),
+                "2234-5678-abcd-efgh": (
+                    {"msg": {"errors": [], "signed_payload": "signed:'blob2'"}},
+                    {"fake": "headers"},
+                ),
+            }
+            patched_recv_client.return_value.get_errors.return_value = []
+
+            signer = MsgSigner()
+            signer.load_config(load_config(f_config_msg_signer_ok))
+            res = signer.blob_sign(blob_sign_operation)
+
+            patched_send_client.assert_called_with(
+                messages=[ANY, ANY],
+                broker_urls=["amqps://broker-01:5671", "amqps://broker-02:5671"],
+                cert=f_client_certificate,
+                ca_cert=f_ca_certificate,
+                retries=3,
+                errors=patched_recv_client.return_value.get_errors.return_value,
+            )
+
+            assert res == SigningResults(
+                signer=signer,
+                operation=blob_sign_operation,
+                signer_results=MsgSignerResults(status="ok", error_message=""),
+                operation_result=BlobSignResult(
+                    results=[
+                        (
+                            {"msg": {"errors": [], "signed_payload": "signed:'blob1'"}},
+                            {"fake": "headers"},
+                        ),
+                        (
+                            {"msg": {"errors": [], "signed_payload": "signed:'blob2'"}},
+                            {"fake": "headers"},
+                        ),
+                    ],
+                    signing_keys=["test-signing-key"],
+                    failed=False,
+                ),
+            )
+
+
+@patch("uuid.uuid4", side_effect=["1234-5678-abcd-efgh", "2234-5678-abcd-efgh"])
+def test_blob_sign_multiple_signing_keys(
+    patched_uuid, f_config_msg_signer_ok, f_client_certificate, f_ca_certificate
+):
+    blob_sign_operation = BlobSignOperation(
+        task_id="1",
+        blobs=[b"blob1"],
+        signing_keys=["test-signing-key", "test-signing-key-1"],
+    )
+
+    with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
+        with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
+            patched_send_client.return_value.run.return_value = []
+            patched_recv_client.return_value.run.return_value = []
+            patched_recv_client.return_value.recv = {
+                "1234-5678-abcd-efgh": (
+                    {"msg": {"errors": [], "signed_payload": "signed:'blob1'"}},
+                    {"fake": "headers"},
+                ),
+                "2234-5678-abcd-efgh": (
+                    {"msg": {"errors": [], "signed_payload": "signed:'blob1'"}},
+                    {"fake": "headers"},
+                ),
+            }
+            patched_recv_client.return_value.get_errors.return_value = []
+
+            signer = MsgSigner()
+            signer.load_config(load_config(f_config_msg_signer_ok))
+            res = signer.blob_sign(blob_sign_operation)
+
+            patched_send_client.assert_called_with(
+                messages=[ANY, ANY],
+                broker_urls=["amqps://broker-01:5671", "amqps://broker-02:5671"],
+                cert=f_client_certificate,
+                ca_cert=f_ca_certificate,
+                retries=3,
+                errors=patched_recv_client.return_value.get_errors.return_value,
+            )
+
+            assert res == SigningResults(
+                signer=signer,
+                operation=blob_sign_operation,
+                signer_results=MsgSignerResults(status="ok", error_message=""),
+                operation_result=BlobSignResult(
+                    results=[
+                        (
+                            {"msg": {"errors": [], "signed_payload": "signed:'blob1'"}},
+                            {"fake": "headers"},
+                        ),
+                        (
+                            {"msg": {"errors": [], "signed_payload": "signed:'blob1'"}},
+                            {"fake": "headers"},
+                        ),
+                    ],
+                    signing_keys=["test-signing-key", "test-signing-key-1"],
+                    failed=False,
+                ),
+            )
+
+
+def test_msg_blob_sign_error(f_msg_signer, f_config_msg_signer_ok):
+    f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
+        "status": "error",
+        "error_message": "simulated error",
+    }
+    f_msg_signer.return_value.sign.return_value.operation_result.results = []
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
+    f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
+    with tempfile.NamedTemporaryFile("w") as blob_file:
+        result = CliRunner().invoke(
+            msg_blob_sign_main,
+            [
+                "--signing-key",
+                "test-signing-key",
+                "--blob-file",
+                blob_file.name,
+                "--task-id",
+                "1",
+                "--config-file",
+                f_config_msg_signer_ok,
+            ],
+        )
+    print(result.stdout)
+    assert result.exit_code == 1, result.output
+
+
+def test_msg_blob_sign_error_raw(f_msg_signer, f_config_msg_signer_ok):
+    f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
+        "status": "error",
+        "error_message": "simulated error",
+    }
+    f_msg_signer.return_value.sign.return_value.operation_result.results = [
+        ({"i": 456, "msg": {"errors": ["error1"], "signed_payload": "signed"}}, {})
+    ]
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
+    f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
+    with tempfile.NamedTemporaryFile("w") as blob_file:
+        result = CliRunner().invoke(
+            msg_blob_sign_main,
+            [
+                "--raw",
+                "--signing-key",
+                "test-signing-key",
+                "--blob-file",
+                blob_file.name,
+                "--task-id",
+                "1",
+                "--config-file",
+                f_config_msg_signer_ok,
+            ],
+        )
+    print(result.stdout)
+    assert result.exit_code == 1, result.output
+
+
+@patch("uuid.uuid4", return_value="1234-5678-abcd-efgh")
+def test_blob_sign_recv_errors(patched_uuid, f_config_msg_signer_ok):
+    blob_sign_operation = BlobSignOperation(
+        task_id="1",
+        blobs=[b"blob1"],
+        signing_keys=["test-signing-key", "test-signing-key-1"],
+    )
+
+    with patch("pubtools.sign.signers.msgsigner.SendClient") as patched_send_client:
+        with patch("pubtools.sign.signers.msgsigner.RecvClient") as patched_recv_client:
+            patched_send_client.return_value.run.return_value = []
+            errors = [
+                MsgError(
+                    name="TestError", description="test error description", source="test-source"
+                )
+            ]
+            patched_recv_client.return_value._errors = errors
+            patched_recv_client.return_value.get_errors.return_value = errors
+            patched_recv_client.return_value.recv = {"1234-5678-abcd-efgh": "signed:'hello world'"}
+
+            signer = MsgSigner()
+            signer.load_config(load_config(f_config_msg_signer_ok))
+            res = signer.sign(blob_sign_operation)
+
+            assert res == SigningResults(
+                signer=signer,
+                operation=blob_sign_operation,
+                signer_results=MsgSignerResults(
+                    status="error", error_message="TestError : test error description\n"
+                ),
+                operation_result=BlobSignResult(
+                    results=["", ""],
+                    signing_keys=["test-signing-key", "test-signing-key-1"],
+                    failed=False,
+                ),
+            )
+
+
+def test_msg_blob_sign_batch(f_msg_signer, f_config_msg_signer_ok):
+    f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {}
+    f_msg_signer.return_value.sign.return_value.operation_result.results = []
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
+    f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
+    with tempfile.NamedTemporaryFile("w") as blob_file:
+        result = CliRunner().invoke(
+            msg_blob_sign_main,
+            [
+                "--raw",
+                "--signing-key",
+                "test-signing-key",
+                "--blob-file",
+                blob_file.name,
+                "--task-id",
+                "1",
+                "--signer-type",
+                "batch",
+                "--config-file",
+                f_config_msg_signer_ok,
+            ],
+        )
+    print(result.stdout)
+    assert result.exit_code == 1, result.output
+
+
+def test_msg_blob_sign_raw(f_msg_signer, f_config_msg_signer_ok):
+    f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
+        "status": "ok"
+    }
+    f_msg_signer.return_value.sign.return_value.operation_result.results = [
+        ({"i": 456, "msg": {"errors": [], "signed_payload": "signed"}}, {})
+    ]
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
+    f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
+    with tempfile.NamedTemporaryFile("w") as blob_file:
+        blob_file.write("blob1\nblob2\n")
+        blob_file.flush()
+        result = CliRunner().invoke(
+            msg_blob_sign_main,
+            [
+                "--raw",
+                "--signing-key",
+                "test-signing-key",
+                "--blob-file",
+                blob_file.name,
+                "--task-id",
+                "1",
+                "--config-file",
+                f_config_msg_signer_ok,
+            ],
+        )
+    print(result.stdout)
+    assert result.exit_code == 0, result.output
+
+
+def test_msg_blob_sign_raw_error_messages(f_msg_signer, f_config_msg_signer_ok):
+    f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
+        "status": "ok"
+    }
+    f_msg_signer.return_value.sign.return_value.operation_result.results = [
+        ({"i": 456, "msg": {"errors": ["error1"], "signed_claim": "signed"}}, {})
+    ]
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
+    f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
+    with tempfile.NamedTemporaryFile("w") as blob_file:
+        blob_file.write("blob1\nblob2\n")
+        blob_file.flush()
+        result = CliRunner().invoke(
+            msg_blob_sign_main,
+            [
+                "--raw",
+                "--signing-key",
+                "test-signing-key",
+                "--blob-file",
+                blob_file.name,
+                "--task-id",
+                "1",
+                "--config-file",
+                f_config_msg_signer_ok,
+            ],
+        )
+    print(result.stdout)
+    assert result.exit_code == 1, result.output
+
+
+def test_msg_blob_sign_requester(f_msg_signer, f_config_msg_signer_ok):
+    f_msg_signer.return_value.sign.return_value.signer_results.to_dict.return_value = {
+        "status": "ok"
+    }
+    f_msg_signer.return_value.sign.return_value.operation_result.results = []
+    f_msg_signer.return_value.sign.return_value.operation_result.signing_keys = []
+    f_msg_signer.return_value.sign.return_value.operation.to_dict.return_value = {}
+    with tempfile.NamedTemporaryFile("w") as blob_file:
+        blob_file.write("blob1\nblob2\n")
+        blob_file.flush()
+        result = CliRunner().invoke(
+            msg_blob_sign_main,
+            [
+                "--raw",
+                "--signing-key",
+                "test-signing-key",
+                "--blob-file",
+                blob_file.name,
+                "--task-id",
+                "1",
+                "--config-file",
+                f_config_msg_signer_ok,
+                "--requester",
+                "test-requester",
+            ],
+        )
+    print(result.stdout)
+    assert result.exit_code == 0, result.output

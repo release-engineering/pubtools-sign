@@ -5,7 +5,7 @@ from dataclasses import field, dataclass, asdict
 import enum
 import json
 import logging
-from typing import cast, Dict, List, ClassVar, Any, Optional, Type
+from typing import cast, Dict, List, ClassVar, Any, Optional, Type, Tuple
 from typing_extensions import Self
 import uuid
 import os
@@ -16,9 +16,9 @@ import click
 
 from . import Signer
 from ..operations.base import SignOperation
-from ..operations import ClearSignOperation, ContainerSignOperation
+from ..operations import ClearSignOperation, ContainerSignOperation, BlobSignOperation
 from ..results.signing_results import SigningResults
-from ..results import ClearSignResult, ContainerSignResult
+from ..results import ClearSignResult, ContainerSignResult, BlobSignResult
 from ..results import SignerResults
 from ..exceptions import UnsupportedOperation
 from ..clients.msg_send_client import SendClient
@@ -44,6 +44,7 @@ class SignRequestType(str, enum.Enum):
 
     CONTAINER = "container_signature"
     CLEARSIGN = "clearsign_signature"
+    GPGSIGN = "gpg_signature"
 
 
 @dataclass()
@@ -161,6 +162,7 @@ class MsgSigner(Signer):
     SUPPORTED_OPERATIONS: ClassVar[List[Type[SignOperation]]] = [
         ContainerSignOperation,
         ClearSignOperation,
+        BlobSignOperation,
     ]
 
     _signer_config_key: str = "msg_signer"
@@ -172,9 +174,14 @@ class MsgSigner(Signer):
         repo: str,
         signing_key_name: str = "",
         extra_attrs: Optional[Dict[str, Any]] = None,
-        sig_type: str = SignRequestType.CONTAINER,
+        sig_type: SignRequestType = SignRequestType.CONTAINER,
     ) -> dict[str, Any]:
-        data_attr = "claim_file" if sig_type == SignRequestType.CONTAINER else "data"
+        if sig_type == SignRequestType.CONTAINER:
+            data_attr = "claim_file"
+        elif sig_type == SignRequestType.GPGSIGN:
+            data_attr = "artifact"
+        else:
+            data_attr = "data"
         _extra_attrs = extra_attrs or {}
         message = {
             "sig_key_id": signing_key[-8:],
@@ -229,7 +236,7 @@ class MsgSigner(Signer):
                     repo,
                     signing_key_name=_signing_key_name,
                     extra_attrs=extra_attrs,
-                    sig_type=sig_type.value,
+                    sig_type=sig_type,
                 ),
                 address=self.topic_send_to.format(
                     **dict(list(asdict(self).items()) + list(asdict(operation).items()))
@@ -289,8 +296,93 @@ class MsgSigner(Signer):
             return self.clear_sign(operation)
         elif isinstance(operation, ContainerSignOperation):
             return self.container_sign(operation)
+        elif isinstance(operation, BlobSignOperation):
+            return self.blob_sign(operation)
         else:
             raise UnsupportedOperation(operation)
+
+    def _send_and_receive(
+        self, messages: List[Any], operation: SignOperation
+    ) -> Tuple[Dict[int, Any], List[MsgError], int]:
+        received: Dict[int, Any] = {}
+        errors: List[MsgError] = []
+
+        for i in range(self.send_retries):
+            message_ids = [message.body["request_id"] for message in messages]
+            LOG.debug(f"{len(messages)} messages to send")
+            recvc = RecvClient(
+                uid=str(i),
+                message_ids=message_ids,
+                topic=self.topic_listen_to.format(
+                    **dict(list(asdict(self).items()) + list(asdict(operation).items()))
+                ),
+                id_key=self.message_id_key,
+                broker_urls=self.messaging_brokers,
+                cert=self.messaging_cert_key,
+                ca_cert=self.messaging_ca_cert,
+                timeout=self.timeout,
+                retries=self.retries,
+                errors=errors,
+                received=received,
+            )
+            recvt = RecvThread(recvc)
+            recvt.start()
+
+            errors = SendClient(
+                messages=messages,
+                broker_urls=self.messaging_brokers,
+                cert=self.messaging_cert_key,
+                ca_cert=self.messaging_ca_cert,
+                retries=self.retries,
+                errors=errors,
+            ).run()
+            # check sender errors
+            if errors:
+                # signer_results.status = "error"
+                # for error in errors:
+                #     signer_results.error_message += f"{error.name} : {error.description}\n"
+                return received, errors, 1
+
+            # wait for receiver to finish
+            recvt.join()
+            recvt.stop()
+
+            # check receiver errors
+            for x in range(self.retries - 1):
+                errors = recvc.get_errors()
+                if errors and errors[0].name == "MessagingTimeout":
+                    LOG.info("RETRYING %s", x)
+                    _messages = []
+                    for message in messages:
+                        if message.body["request_id"] not in received:
+                            _messages.append(message)
+                    if x != self.retries - 1:
+                        errors.pop(0)
+                    messages = _messages
+                    message_ids = [message.body["request_id"] for message in messages]
+
+                    LOG.info("Retrying recv")
+                    recvc = RecvClient(
+                        uid=str(i) + "-" + str(x),
+                        message_ids=message_ids,
+                        topic=self.topic_listen_to.format(
+                            **dict(list(asdict(self).items()) + list(asdict(operation).items()))
+                        ),
+                        id_key=self.message_id_key,
+                        broker_urls=self.messaging_brokers,
+                        cert=self.messaging_cert_key,
+                        ca_cert=self.messaging_ca_cert,
+                        timeout=self.timeout,
+                        retries=self.retries,
+                        errors=errors,
+                        received=received,
+                    )
+                    recvt = RecvThread(recvc)
+                    recvt.start()
+                    recvt.join()
+                elif not errors:
+                    break
+        return recvc.recv, recvc.get_errors(), 0 if not recvc.get_errors() else 1
 
     def clear_sign(self: MsgSigner, operation: ClearSignOperation) -> SigningResults:
         """Run the clearsign operation.
@@ -330,86 +422,11 @@ class MsgSigner(Signer):
         )
         errors: List[MsgError] = []
         received: Dict[int, Any] = {}
-        LOG.info("errors " + str(errors))
+        # LOG.info("errors " + str(errors))
 
-        for i in range(self.send_retries):
-            message_ids = [message.body["request_id"] for message in messages]
-            LOG.debug(f"{len(messages)} messages to send")
-            recvc = RecvClient(
-                uid=str(i),
-                message_ids=message_ids,
-                topic=self.topic_listen_to.format(
-                    **dict(list(asdict(self).items()) + list(asdict(operation).items()))
-                ),
-                id_key=self.message_id_key,
-                broker_urls=self.messaging_brokers,
-                cert=self.messaging_cert_key,
-                ca_cert=self.messaging_ca_cert,
-                timeout=self.timeout,
-                retries=self.retries,
-                errors=errors,
-                received=received,
-            )
-            recvt = RecvThread(recvc)
-            recvt.start()
+        received, errors, retcode = self._send_and_receive(messages, operation)
 
-            errors = SendClient(
-                messages=messages,
-                broker_urls=self.messaging_brokers,
-                cert=self.messaging_cert_key,
-                ca_cert=self.messaging_ca_cert,
-                retries=self.retries,
-                errors=errors,
-            ).run()
-            # check sender errors
-            if errors:
-                signer_results.status = "error"
-                for error in errors:
-                    signer_results.error_message += f"{error.name} : {error.description}\n"
-                return signing_results
-
-            # wait for receiver to finish
-            recvt.join()
-            recvt.stop()
-
-            # check receiver errors
-            for x in range(self.retries - 1):
-                errors = recvc._errors
-                if errors and errors[0].name == "MessagingTimeout":
-                    LOG.info("RETRYING %s", x)
-                    _messages = []
-                    for message in messages:
-                        if message.body["request_id"] not in received:
-                            _messages.append(message)
-                    if x != self.retries - 1:
-                        errors.pop(0)
-                    messages = _messages
-                    message_ids = [message.body["request_id"] for message in messages]
-
-                    LOG.info("Retrying recv")
-                    recvc = RecvClient(
-                        uid=str(i) + "-" + str(x),
-                        message_ids=message_ids,
-                        topic=self.topic_listen_to.format(
-                            **dict(list(asdict(self).items()) + list(asdict(operation).items()))
-                        ),
-                        id_key=self.message_id_key,
-                        broker_urls=self.messaging_brokers,
-                        cert=self.messaging_cert_key,
-                        ca_cert=self.messaging_ca_cert,
-                        timeout=self.timeout,
-                        retries=self.retries,
-                        errors=errors,
-                        received=received,
-                    )
-                    recvt = RecvThread(recvc)
-                    recvt.start()
-                    recvt.join()
-                elif not errors:
-                    break
-
-        errors = recvc._errors
-        if errors:
+        if errors and retcode != 0:
             signer_results.status = "error"
             for error in errors:
                 signer_results.error_message += f"{error.name} : {error.description}\n"
@@ -419,7 +436,7 @@ class MsgSigner(Signer):
             signing_keys=operation.signing_keys, outputs=[""] * len(all_messages)
         )
 
-        for recv_id, _received in recvc.recv.items():
+        for recv_id, _received in received.items():
             operation_result.outputs[all_messages.index(message_to_data[recv_id])] = _received
         signing_results.operation_result = operation_result
         return signing_results
@@ -521,96 +538,70 @@ class MsgSigner(Signer):
             self.timeout,
         )
 
-        for i in range(self.send_retries):
-            message_ids = [message.body["request_id"] for message in messages]
-            recvc = RecvClient(
-                uid=str(i),
-                message_ids=message_ids,
-                topic=self.topic_listen_to.format(
-                    **dict(list(asdict(self).items()) + list(asdict(operation).items()))
-                ),
-                id_key=self.message_id_key,
-                broker_urls=self.messaging_brokers,
-                cert=self.messaging_cert_key,
-                ca_cert=self.messaging_ca_cert,
-                timeout=self.timeout,
-                retries=self.retries,
-                errors=errors,
-                received=received,
+        received, errors, retcode = self._send_and_receive(messages, operation)
+
+        if errors and retcode != 0:
+            signer_results.status = "error"
+            for error in errors:
+                signer_results.error_message += f"{error.name} : {error.description}\n"
+            return signing_results
+
+        for recv_id, _received in received.items():
+            operation_result.failed = True if _received[0]["msg"]["errors"] else False
+            operation_result.results[all_messages.index(message_to_data[recv_id])] = _received
+
+        signing_results.operation_result = operation_result
+        return signing_results
+
+    def blob_sign(self: MsgSigner, operation: BlobSignOperation) -> SigningResults:
+        """Run blob signing operation.
+
+        Arguments:
+            operation (BlobSignOperation): signing operation
+
+        Results:
+            SigningResults: results of the signing operation
+        """
+        set_log_level(LOG, self.log_level)
+        messages = []
+        message_to_data = {}
+        for blob in operation.blobs:
+            _key_messages = self._create_msg_messages(
+                blob,
+                "",
+                operation,
+                SignRequestType.GPGSIGN,
+                extra_attrs={"pub_task_id": operation.task_id, "manifest_digest": ""},
             )
-            recvt = RecvThread(recvc)
-            recvt.start()
+            for message in _key_messages:
+                message_to_data[message.body["request_id"]] = message
+                messages.append(message)
 
-            errors = SendClient(
-                messages=messages,
-                broker_urls=self.messaging_brokers,
-                cert=self.messaging_cert_key,
-                ca_cert=self.messaging_ca_cert,
-                retries=self.retries,
-                errors=errors,
-            ).run()
+        all_messages = [x for x in messages]
 
-            # check sender errors
-            if errors:
-                signer_results.status = "error"
-                for error in errors:
-                    signer_results.error_message += f"{error.name} : {error.description}\n"
-                return signing_results
+        signer_results = MsgSignerResults(status="ok", error_message="")
+        operation_result = BlobSignResult(
+            signing_keys=operation.signing_keys, results=[""] * len(all_messages), failed=False
+        )
+        signing_results = SigningResults(
+            signer=self,
+            operation=operation,
+            signer_results=signer_results,
+            operation_result=operation_result,
+        )
+        errors: List[MsgError] = []
+        received: Dict[int, Any] = {}
+        # LOG.info("errors " + str(errors))
 
-            # wait for receiver to finish
-            recvt.join()
-            recvt.stop()
-            received = recvc.get_received()
+        received, errors, retcode = self._send_and_receive(messages, operation)
 
-            for x in range(self.retries):
-                errors = recvc.get_errors()
-                if errors and errors[0].name == "MessagingTimeout":
-                    LOG.info("Retrying receiving %s/%s", x, self.retries)
-                    _messages = []
-                    for message in messages:
-                        if message.body["request_id"] not in received:
-                            _messages.append(message)
-                    if x != self.retries - 1:
-                        errors.pop(0)
-                    messages = _messages
-                    if not messages:
-                        break
-                    message_ids = [message.body["request_id"] for message in messages]
+        if errors and retcode != 0:
+            signer_results.status = "error"
+            for error in errors:
+                signer_results.error_message += f"{error.name} : {error.description}\n"
+            return signing_results
 
-                    recvc = RecvClient(
-                        uid=str(i) + "-" + str(x),
-                        message_ids=message_ids,
-                        topic=self.topic_listen_to.format(
-                            **dict(list(asdict(self).items()) + list(asdict(operation).items()))
-                        ),
-                        id_key=self.message_id_key,
-                        broker_urls=self.messaging_brokers,
-                        cert=self.messaging_cert_key,
-                        ca_cert=self.messaging_ca_cert,
-                        timeout=self.timeout,
-                        retries=self.retries,
-                        errors=errors,
-                        received=received,
-                    )
-                    recvt = RecvThread(recvc)
-                    recvt.start()
-                    recvt.join()
-                elif not errors:
-                    break
-                received = recvc.get_received()
-
-            # check receiver errors
-            errors = recvc.get_errors()
-            if not errors:
-                break
-
-            if errors:
-                signer_results.status = "error"
-                for error in errors:
-                    signer_results.error_message += f"{error.name} : {error.description}\n"
-                return signing_results
-
-        for recv_id, _received in recvc.recv.items():
+        for recv_id, _received in received.items():
             operation_result.failed = True if _received[0]["msg"]["errors"] else False
             operation_result.results[all_messages.index(message_to_data[recv_id])] = _received
 
@@ -875,6 +866,47 @@ def msg_container_sign(
     }
 
 
+def msg_blob_sign(
+    signing_keys: List[str],
+    signing_key_names: List[str],
+    task_id: str,
+    config_file: str,
+    blob_files: List[str],
+    requester: str = "",
+    signer_type: str = "single",
+) -> Dict[str, Any]:
+    """Run blobsign operation with cli arguments."""
+    if signer_type == "single":
+        msg_signer = MsgSigner()
+    elif signer_type == "batch":
+        raise NotImplementedError("Batch signer does not support blob signing yet")
+
+    config = _get_config_file(config_file)
+    msg_signer.load_config(load_config(os.path.expanduser(config)))
+    if requester:
+        msg_signer.creator = requester
+
+    blobs = []
+    for blob_file in blob_files:
+        with open(blob_file, "rb") as bf:
+            blobs.append(base64.b64encode(bf.read()).decode("utf-8"))
+
+    operation = BlobSignOperation(
+        blobs=blobs,
+        signing_keys=signing_keys,
+        signing_key_names=signing_key_names,
+        task_id=task_id,
+        requester=requester,
+    )
+    signing_result = msg_signer.sign(operation)
+    return {
+        "signer_result": signing_result.signer_results.to_dict(),
+        "operation_results": signing_result.operation_result.results,
+        "operation": signing_result.operation.to_dict(),
+        "signing_keys": signing_result.operation_result.signing_keys,
+    }
+
+
 @click.command()
 @click.option(
     "--signing-key",
@@ -1053,3 +1085,98 @@ def msg_container_sign_main(
                 sys.exit(1)
             else:
                 print(claim[0]["msg"]["signed_claim"])
+
+
+@click.command()
+@click.option(
+    "--signing-key",
+    required=True,
+    multiple=True,
+    help="8 characters key fingerprint of key which should be used for signing or key alias",
+)
+@click.option(
+    "--signing-key-name",
+    required=False,
+    multiple=True,
+    help="signing key name",
+)
+@click.option("--task-id", required=True, help="Task id identifier (usually pub task-id)")
+@click.option("--config-file", default=CONFIG_PATHS[0], help="path to the config file")
+@click.option(
+    "--blob-file",
+    required=True,
+    multiple=True,
+    type=str,
+    help="Blob files to sign (paths to files whose contents will be signed).",
+)
+@click.option(
+    "--requester",
+    required=False,
+    multiple=False,
+    type=str,
+    help="Use this requester instead of the one from the certificate file.",
+)
+@click.option("--raw", default=False, is_flag=True, help="Print raw output instead of json")
+@click.option(
+    "--log-level",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"]),
+    default="INFO",
+    help="Set log level",
+)
+@click.option(
+    "--signer-type", type=click.Choice(["single", "batch"]), default="single", help="Signer type"
+)
+def msg_blob_sign_main(
+    signing_key: List[str],
+    signing_key_name: List[str],
+    task_id: str = "",
+    config_file: str = "",
+    blob_file: List[str] = [],
+    requester: str = "",
+    raw: bool = False,
+    log_level: str = "INFO",
+    signer_type: str = "single",
+) -> None:
+    """Entry point method for blobsign operation.
+
+    Print following json output on stdout when `--raw` is NOT set:
+
+    {
+        "signer_result": [pubtools.sign.signers.msgsigner.MsgSignerResults][],
+        "operation_results": [pubtools.sign.results.blobsign.BlobSignResult][],
+        "operation": [pubtools.sign.operations.blobsign.BlobSignOperation][],
+        "signing_keys": ["signing_key_id"]
+    }
+
+    Otherwise prints one signed claim per line if sucessfull or error messages
+    """
+    ch = logging.StreamHandler()
+    ch.setLevel(getattr(logging, sanitize_log_level(log_level)))
+    LOG.addHandler(ch)
+    logging.basicConfig(level=getattr(logging, sanitize_log_level(log_level)))
+
+    ret = msg_blob_sign(
+        signing_keys=signing_key,
+        signing_key_names=signing_key_name,
+        task_id=task_id,
+        config_file=config_file,
+        blob_files=blob_file,
+        requester=requester,
+        signer_type=signer_type,
+    )
+    if not raw:
+        click.echo(json.dumps(ret))
+        if ret["signer_result"]["status"] == "error":
+            sys.exit(1)
+    else:
+        if ret["signer_result"]["status"] == "error":
+            print(ret["signer_result"]["error_message"], file=sys.stderr)
+            sys.exit(1)
+        else:
+            for claim in ret["operation_results"]:
+                if claim[0]["msg"]["errors"]:
+                    for error in claim[0]["msg"]["errors"]:
+                        print(error, file=sys.stderr)
+                    sys.exit(1)
+                else:
+                    print(claim[0]["msg"]["signed_payload"])

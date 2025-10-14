@@ -1,0 +1,27 @@
+from __future__ import annotations
+import dataclasses
+
+from typing import List, ClassVar, Any, Dict
+from typing_extensions import Self
+
+from ..results.operation_result import OperationResult
+
+
+@dataclasses.dataclass
+class BlobSignResult(OperationResult):
+    """BlobSignResult model.
+
+    Attributes:
+        results (List[Any]): List of signing result outputs.
+        signing_keys (List[str]): The signing keys used during signing.
+        failed (bool): Indicates if the operation failed.
+    """
+
+    ResultType: ClassVar[OperationResult]
+    results: List[Any]
+    signing_keys: List[str]
+    failed: bool
+
+    def to_dict(self: Self) -> Dict[Any, Any]:
+        """Return dict representation of BlobSignResult."""
+        return {"results": self.results, "signing_keys": self.signing_keys, "failed": self.failed}

@@ -6,8 +6,9 @@ from typing import Any, Dict
 
 from .clearsign import ClearSignResult  # noqa: F401
 from .containersign import ContainerSignResult  # noqa: F401
+from .blobsign import BlobSignResult  # noqa: F401
 
-__all__ = ["ClearSignResult", "ContainerSignResult"]
+__all__ = ["ClearSignResult", "ContainerSignResult", "BlobSignResult"]
 
 
 @dataclasses.dataclass()
