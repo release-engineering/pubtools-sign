@@ -1,6 +1,11 @@
 ChangeLog
 =========
 
+1.0.3 (22-01-2026)
+-------------------
+* Not retry send when receiver has no error
+* fix: correct indentation bug in MsgBatchSigner._prepare_messages
+
 1.0.2 (20-11-2025)
 -------------------
 * Added msg blob signer
