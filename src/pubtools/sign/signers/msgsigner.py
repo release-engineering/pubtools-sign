@@ -214,6 +214,7 @@ class MsgSigner(Signer):
             "owner_id": self.creator,
             "mtype": sig_type.value,
             "source": "metadata",
+            "expires": self.timeout * self.retries * 1000,
         }
         if extra_attrs:
             headers.update(extra_attrs)
