@@ -86,6 +86,8 @@ class _RecvClient(_MsgClient):
         outer_message = json.loads(event.message.body)
         headers = event.message.properties
         msg_id = outer_message["msg"][self.id_key]
+        if event.delivery:
+            self.accept(event.delivery)
 
         if msg_id in self.recv_ids:
             self.recv_ids[msg_id] = True
