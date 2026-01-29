@@ -1,0 +1,132 @@
+{
+  "nodes": [
+    {
+      "id": "0",
+      "name": "Introduction",
+      "symbolSize": 4,
+      "value": null
+    },
+    {
+      "id": "1",
+      "name": "Installation Guide",
+      "symbolSize": 2,
+      "value": null
+    },
+    {
+      "id": "2",
+      "name": "Quick Start",
+      "symbolSize": 3,
+      "value": null
+    },
+    {
+      "id": "3",
+      "name": "User guide",
+      "symbolSize": 5,
+      "value": null
+    },
+    {
+      "id": "4",
+      "name": "Configuration file",
+      "symbolSize": 6,
+      "value": null
+    },
+    {
+      "id": "5",
+      "name": "CLI Commands",
+      "symbolSize": 1,
+      "value": null
+    },
+    {
+      "id": "6",
+      "name": "Containers signing",
+      "symbolSize": 1,
+      "value": null
+    },
+    {
+      "id": "7",
+      "name": "Clear sign",
+      "symbolSize": 1,
+      "value": null
+    },
+    {
+      "id": "8",
+      "name": "Cosign signer details",
+      "symbolSize": 2,
+      "value": null
+    },
+    {
+      "id": "9",
+      "name": "Messaging signer details",
+      "symbolSize": 3,
+      "value": null
+    },
+    {
+      "id": "10",
+      "name": "Developer Guide",
+      "symbolSize": 2,
+      "value": null
+    }
+  ],
+  "links": [
+    {
+      "source": "0",
+      "target": "1"
+    },
+    {
+      "source": "0",
+      "target": "2"
+    },
+    {
+      "source": "0",
+      "target": "3"
+    },
+    {
+      "source": "0",
+      "target": "10"
+    },
+    {
+      "source": "2",
+      "target": "1"
+    },
+    {
+      "source": "2",
+      "target": "4"
+    },
+    {
+      "source": "10",
+      "target": "9"
+    },
+    {
+      "source": "4",
+      "target": "9"
+    },
+    {
+      "source": "4",
+      "target": "8"
+    },
+    {
+      "source": "3",
+      "target": "5"
+    },
+    {
+      "source": "3",
+      "target": "4"
+    },
+    {
+      "source": "3",
+      "target": "7"
+    },
+    {
+      "source": "3",
+      "target": "6"
+    },
+    {
+      "source": "8",
+      "target": "4"
+    },
+    {
+      "source": "9",
+      "target": "4"
+    }
+  ]
+}
