@@ -255,7 +255,13 @@ def test_create_msg_batch_message(f_config_msg_batch_signer_ok):
                 task_id="1",
             )
             assert signer._create_msg_batch_message(
-                data, "repo", operation, SignRequestType.BATCH
+                data,
+                "repo",
+                operation,
+                SignRequestType.BATCH,
+                extra_attrs={
+                    "manifest_digest": ["some-digest-1", "some-digest-2", "some-digest-3"]
+                },
             ) == [
                 MsgMessage(
                     headers={

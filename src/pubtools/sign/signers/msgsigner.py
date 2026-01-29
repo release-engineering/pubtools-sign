@@ -694,9 +694,9 @@ class MsgBatchSigner(MsgSigner):
                 signing_keys.append(_signing_key)
 
         extra_attrs = extra_attrs or {}
-        headers = self._construct_headers(sig_type, extra_attrs=extra_attrs)
-        if isinstance(operation, ContainerSignOperation):
-            extra_attrs["manifest_digest"] = operation.digests
+        extra_attrs_headers = extra_attrs.copy()
+        extra_attrs_headers.pop("manifest_digest")
+        headers = self._construct_headers(sig_type, extra_attrs=extra_attrs_headers)
         ret = MsgMessage(
             headers=headers,
             body=self._construct_signing_batch_message(
@@ -745,7 +745,7 @@ class MsgBatchSigner(MsgSigner):
                         args=[claims, repo, operation, SignRequestType.BATCH],
                         kwargs={
                             "extra_attrs": {
-                                "pipeline_run_id": operation.task_id,
+                                "pipeline_run_id": str(operation.task_id),
                                 "manifest_digest": digests,
                             }
                         },
@@ -758,7 +758,7 @@ class MsgBatchSigner(MsgSigner):
                     args=[claims, repo, operation, SignRequestType.BATCH],
                     kwargs={
                         "extra_attrs": {
-                            "pipeline_run_id": operation.task_id,
+                            "pipeline_run_id": str(operation.task_id),
                             "manifest_digest": digests,
                         }
                     },
