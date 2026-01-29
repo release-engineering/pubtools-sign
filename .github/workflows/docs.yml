@@ -22,7 +22,7 @@ jobs:
       - name: Run Tox
         run: tox -e docs -vv
       - name: Publish
-        uses: JamesIves/github-pages-deploy-action@v4.4.1
+        uses: JamesIves/github-pages-deploy-action@v4.8.0
         with:
           branch: gh-pages
           folder: docs/build/html
