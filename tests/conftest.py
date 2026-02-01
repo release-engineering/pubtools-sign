@@ -503,3 +503,119 @@ msg_signer:
 def f_environ():
     with patch.dict(os.environ, {}, clear=True) as patched:
         yield patched
+
+
+# ============================================================================
+# Kafka Test Fixtures
+# ============================================================================
+
+@fixture
+def f_kafka_bootstrap_servers():
+    """Kafka bootstrap servers for testing."""
+    return ["localhost:9092"]
+
+
+@fixture
+def f_kafka_topic_send():
+    """Kafka topic to send messages to."""
+    return "test-signing-requests"
+
+
+@fixture
+def f_kafka_topic_recv():
+    """Kafka topic to receive messages from."""
+    return "test-signing-responses"
+
+
+@fixture
+def f_kafka_credentials():
+    """Kafka credentials for testing."""
+    return {
+        "username": "test-user",
+        "password": "test-password",
+    }
+
+
+@fixture
+def f_kafka_group_id():
+    """Kafka consumer group ID for testing."""
+    return "pubtools-sign-test-group"
+
+
+@fixture
+def f_config_msg_signer_with_kafka(f_client_certificate, f_ca_certificate):
+    """Config with Kafka only (one transport per config file)."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as tmpf:
+        tmpf.write(
+            """
+kafka_signer:
+  bootstrap_servers:
+    - localhost:9092
+  username: test-user
+  password: test-password
+  topic_send_to: test-signing-requests
+  topic_listen_to: test-signing-responses
+  group_id: pubtools-sign-test-group
+  retries: 3
+  fallback_base: 0.1
+  fallback_factor: 2.0
+  environment: prod
+  service: pubtools-sign
+  timeout: 60
+"""
+        )
+        tmpf.flush()
+        yield tmpf.name
+        os.unlink(tmpf.name)
+
+
+@fixture
+def f_config_kafka_standalone(f_client_certificate, f_ca_certificate):
+    """Standalone Kafka config file using the new format."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as tmpf:
+        tmpf.write(
+            """
+kafka_signer:
+  bootstrap_servers:
+    - localhost:9092
+  username: test-user
+  password: test-password
+  topic_send_to: test-signing-requests
+  topic_listen_to: test-signing-responses
+  group_id: pubtools-sign-standalone-group
+  retries: 5
+  fallback_base: 0.5
+  fallback_factor: 1.5
+"""
+        )
+        tmpf.flush()
+        yield tmpf.name
+        os.unlink(tmpf.name)
+
+
+@fixture
+def f_config_umb_only(f_client_certificate, f_ca_certificate):
+    """UMB-only config file (no Kafka)."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as tmpf:
+        tmpf.write(
+            f"""
+msg_signer:
+  messaging_brokers:
+    - amqps://broker-01:5671
+    - amqps://broker-02:5671
+  messaging_cert_key: {f_client_certificate}
+  messaging_ca_cert: {f_ca_certificate}
+  topic_send_to: topic://Topic.sign
+  topic_listen_to: queue://Consumer.{{{{creator}}}}.{{{{task_id}}}}.Topic.sign.{{{{task_id}}}}
+  environment: prod
+  service: pubtools-sign
+  timeout: 1
+  retries: 3
+  send_retries: 2
+  message_id_key: request_id
+  log_level: debug
+"""
+        )
+        tmpf.flush()
+        yield tmpf.name
+        os.unlink(tmpf.name)

@@ -34,6 +34,10 @@ from ..utils import (
     FData,
 )
 
+from ..clients.kafka_send_client import KafkaSendClient
+from ..clients.kafka_recv_client import KafkaRecvClient, KafkaRecvThread
+from ..models.kafka import KafkaMessage, KafkaError
+
 
 LOG = logging.getLogger("pubtools.sign.signers.msgsigner")
 LOG.setLevel(logging.INFO)
@@ -168,6 +172,87 @@ class MsgSigner(Signer):
         },
     )
 
+    kafka_enabled: bool = field(
+        init=False,
+        default=False,
+        metadata={
+            "description": "Kafka messaging enabled (auto-set when kafka config is present)",
+            "sample": False,
+        },
+    )
+    kafka_bootstrap_servers: List[str] = field(
+        init=False,
+        default_factory=list,
+        metadata={
+            "description": "List of Kafka broker URLs",
+            "sample": ["kafka-01:9092", "kafka-02:9092"],
+        },
+    )
+    kafka_username: str = field(
+        init=False,
+        default="",
+        metadata={
+            "description": "Kafka username for SASL authentication",
+            "sample": "kafka-user",
+        },
+    )
+    kafka_password: str = field(
+        init=False,
+        default="",
+        metadata={
+            "description": "Kafka password for SASL authentication",
+            "sample": "kafka-password",
+        },
+    )
+    kafka_topic_send_to: str = field(
+        init=False,
+        default="",
+        metadata={
+            "description": "Kafka topic where to send the messages",
+            "sample": "signing-requests",
+        },
+    )
+    kafka_topic_listen_to: str = field(
+        init=False,
+        default="",
+        metadata={
+            "description": "Kafka topic where to listen for replies",
+            "sample": "signing-responses",
+        },
+    )
+    kafka_group_id: str = field(
+        init=False,
+        default="pubtools-sign",
+        metadata={
+            "description": "Kafka consumer group ID",
+            "sample": "pubtools-sign-group",
+        },
+    )
+    kafka_retries: int = field(
+        init=False,
+        default=3,
+        metadata={
+            "description": "Number of retries for Kafka operations",
+            "sample": 3,
+        },
+    )
+    kafka_fallback_base: float = field(
+        init=False,
+        default=1.0,
+        metadata={
+            "description": "Base time for exponential backoff in Kafka retries",
+            "sample": 1.0,
+        },
+    )
+    kafka_fallback_factor: float = field(
+        init=False,
+        default=2.0,
+        metadata={
+            "description": "Multiplier for exponential backoff in Kafka retries",
+            "sample": 2.0,
+        },
+    )
+
     SUPPORTED_OPERATIONS: ClassVar[List[Type[SignOperation]]] = [
         ContainerSignOperation,
         ClearSignOperation,
@@ -261,24 +346,102 @@ class MsgSigner(Signer):
 
         Arguments:
             config_data (dict): configuration data to load
+
+        The config file determines which transport to use based on which section is present.
+        Only one transport can be configured per config file.
         """
-        self.messaging_brokers = config_data["msg_signer"]["messaging_brokers"]
-        self.messaging_cert_key = os.path.expanduser(
-            config_data["msg_signer"]["messaging_cert_key"]
-        )
-        self.messaging_ca_cert = os.path.expanduser(config_data["msg_signer"]["messaging_ca_cert"])
-        self.topic_send_to = config_data["msg_signer"]["topic_send_to"]
-        self.topic_listen_to = config_data["msg_signer"]["topic_listen_to"]
-        self.environment = config_data["msg_signer"]["environment"]
-        self.service = config_data["msg_signer"]["service"]
-        self.message_id_key = config_data["msg_signer"]["message_id_key"]
-        self.retries = config_data["msg_signer"]["retries"]
-        self.send_retries = config_data["msg_signer"]["send_retries"]
-        self.log_level = config_data["msg_signer"]["log_level"]
-        self.timeout = config_data["msg_signer"]["timeout"]
-        self.creator = self._get_cert_subject_cn()
-        self.key_aliases = config_data["msg_signer"].get("key_aliases", {})
-        self.task_id_attribute = config_data["msg_signer"].get("task_id_attribute", "pub_task_id")
+        umb_config = config_data.get("msg_signer")
+        kafka_config = config_data.get("kafka_signer")
+
+        if umb_config and kafka_config:
+            raise ValueError("Config file cannot have both msg_signer and kafka_signer. Choose one.")
+
+        if not umb_config and not kafka_config:
+            raise ValueError("Config file must have either msg_signer or kafka_signer")
+
+        if umb_config:
+            self.messaging_brokers = umb_config["messaging_brokers"]
+            self.messaging_cert_key = os.path.expanduser(umb_config["messaging_cert_key"])
+            self.messaging_ca_cert = os.path.expanduser(umb_config["messaging_ca_cert"])
+            self.topic_send_to = umb_config["topic_send_to"]
+            self.topic_listen_to = umb_config["topic_listen_to"]
+            self.environment = umb_config["environment"]
+            self.service = umb_config["service"]
+            self.message_id_key = umb_config["message_id_key"]
+            self.retries = umb_config["retries"]
+            self.send_retries = umb_config["send_retries"]
+            self.log_level = umb_config["log_level"]
+            self.timeout = umb_config["timeout"]
+            self.creator = self._get_cert_subject_cn()
+            self.key_aliases = umb_config.get("key_aliases", {})
+            self.task_id_attribute = umb_config.get("task_id_attribute", "pub_task_id")
+            self.kafka_enabled = False
+        else:
+            self.messaging_brokers = []
+            self.messaging_cert_key = ""
+            self.messaging_ca_cert = ""
+            self.topic_send_to = ""
+            self.topic_listen_to = ""
+            self.environment = kafka_config.get("environment", "prod")
+            self.service = kafka_config.get("service", "pubtools-sign")
+            self.message_id_key = "request_id"
+            self.retries = kafka_config.get("retries", 3)
+            self.send_retries = kafka_config.get("send_retries", 2)
+            self.log_level = "INFO"
+            self.timeout = kafka_config.get("timeout", 600)
+            self.creator = kafka_config.get("creator", "pubtools-sign")
+            self.key_aliases = {}
+            self.task_id_attribute = "pub_task_id"
+            self._load_kafka_config(config_data)
+
+    def _load_kafka_config(self: MsgSigner, config_data: Dict[str, Any]) -> None:
+        """Load Kafka configuration from config data.
+
+        Kafka is automatically enabled when kafka_signer section is present
+        with required fields: bootstrap_servers, topic_send_to, topic_listen_to.
+
+        Arguments:
+            config_data (dict): configuration data to load
+        """
+        kafka_config = config_data.get("kafka_signer")
+
+        if not kafka_config:
+            self.kafka_enabled = False
+            return
+
+        self.kafka_bootstrap_servers = kafka_config.get("bootstrap_servers", [])
+        self.kafka_username = kafka_config.get("username", "")
+        self.kafka_password = kafka_config.get("password", "")
+        self.kafka_topic_send_to = kafka_config.get("topic_send_to", "")
+        self.kafka_topic_listen_to = kafka_config.get("topic_listen_to", "")
+        self.kafka_group_id = kafka_config.get("group_id", "pubtools-sign")
+        self.kafka_retries = kafka_config.get("retries", 3)
+        self.kafka_fallback_base = kafka_config.get("fallback_base", 1.0)
+        self.kafka_fallback_factor = kafka_config.get("fallback_factor", 2.0)
+
+        missing = []
+        if not self.kafka_bootstrap_servers:
+            missing.append("bootstrap_servers")
+        if not self.kafka_topic_send_to:
+            missing.append("topic_send_to")
+        if not self.kafka_topic_listen_to:
+            missing.append("topic_listen_to")
+
+        if missing:
+            LOG.debug(
+                "Kafka config section present but missing required fields: %s. "
+                "Kafka messaging will not be enabled.",
+                ", ".join(missing),
+            )
+            self.kafka_enabled = False
+        else:
+            self.kafka_enabled = True
+            LOG.info(
+                "Kafka messaging enabled. Brokers: %s, Send topic: %s, Recv topic: %s",
+                self.kafka_bootstrap_servers,
+                self.kafka_topic_send_to,
+                self.kafka_topic_listen_to,
+            )
 
     def _get_cert_subject_cn(self) -> str:
         x509 = crypto.load_certificate(
@@ -312,7 +475,138 @@ class MsgSigner(Signer):
         else:
             raise UnsupportedOperation(operation)
 
-    def _send_and_receive(
+    def _convert_to_kafka_messages(
+        self, messages: List[MsgMessage], operation: SignOperation
+    ) -> List["KafkaMessage"]:
+        """Convert MsgMessage objects to KafkaMessage objects.
+
+        Args:
+            messages: List of MsgMessage objects.
+            operation: The signing operation (for topic formatting).
+
+        Returns:
+            List of KafkaMessage objects.
+        """
+        kafka_messages = []
+        topic = self.kafka_topic_send_to.format(
+            **dict(list(asdict(self).items()) + list(asdict(operation).items()))
+        )
+        for msg in messages:
+            kafka_msg = KafkaMessage(
+                headers=dict(msg.headers),
+                topic=topic,
+                body=dict(msg.body),
+                ttl=msg.ttl,
+            )
+            kafka_messages.append(kafka_msg)
+        return kafka_messages
+
+    def _kafka_send_and_receive(
+        self, messages: List[MsgMessage], operation: SignOperation
+    ) -> Tuple[Dict[Any, Any], List["KafkaError"], int]:
+        """Send messages to Kafka and receive responses.
+
+        This method handles Kafka messaging when Kafka transport is configured.
+
+        Args:
+            messages: List of messages to send.
+            operation: The signing operation.
+
+        Returns:
+            Tuple of (received messages dict, errors list, return code).
+        """
+        if not self.kafka_enabled:
+            return {}, [], 0
+
+        kafka_messages = self._convert_to_kafka_messages(messages, operation)
+        received: Dict[Any, Any] = {}
+        errors: List[KafkaError] = []
+
+        for i in range(self.send_retries):
+            message_ids = [msg.body["request_id"] for msg in kafka_messages]
+            LOG.debug("KAFKA: %d messages to send", len(kafka_messages))
+
+            listen_topic = self.kafka_topic_listen_to.format(
+                **dict(list(asdict(self).items()) + list(asdict(operation).items()))
+            )
+
+            kafka_recvc = KafkaRecvClient(
+                uid=f"kafka-{i}",
+                message_ids=message_ids,
+                topic=listen_topic,
+                id_key=self.message_id_key,
+                bootstrap_servers=self.kafka_bootstrap_servers,
+                username=self.kafka_username,
+                password=self.kafka_password,
+                group_id=self.kafka_group_id,
+                timeout=self.timeout,
+                retries=self.retries,
+                errors=errors,
+                received=received,
+            )
+            kafka_recvt = KafkaRecvThread(kafka_recvc)
+            kafka_recvt.start()
+
+            send_errors = KafkaSendClient(
+                messages=kafka_messages,
+                bootstrap_servers=self.kafka_bootstrap_servers,
+                username=self.kafka_username,
+                password=self.kafka_password,
+                retries=self.kafka_retries,
+                errors=errors,
+                fallback_base=self.kafka_fallback_base,
+                fallback_factor=self.kafka_fallback_factor,
+            ).run()
+
+            if send_errors:
+                LOG.warning("KAFKA: Send errors occurred: %s", send_errors)
+                kafka_recvc.close()
+                return received, send_errors, 1
+
+            kafka_recvt.join()
+            kafka_recvt.stop()
+
+            for x in range(self.retries - 1):
+                errors = kafka_recvc.get_errors()
+                if errors and errors[0].name == "MessagingTimeout":
+                    LOG.info("KAFKA: RETRYING %s", x)
+                    _messages = []
+                    for msg in kafka_messages:
+                        if msg.body["request_id"] not in received:
+                            _messages.append(msg)
+                    if x != self.retries - 1:
+                        errors.pop(0)
+                    kafka_messages = _messages
+                    message_ids = [msg.body["request_id"] for msg in kafka_messages]
+
+                    LOG.info("KAFKA: Retrying recv")
+                    kafka_recvc = KafkaRecvClient(
+                        uid=f"kafka-{i}-{x}",
+                        message_ids=message_ids,
+                        topic=listen_topic,
+                        id_key=self.message_id_key,
+                        bootstrap_servers=self.kafka_bootstrap_servers,
+                        username=self.kafka_username,
+                        password=self.kafka_password,
+                        group_id=self.kafka_group_id,
+                        timeout=self.timeout,
+                        retries=self.retries,
+                        errors=errors,
+                        received=received,
+                    )
+                    kafka_recvt = KafkaRecvThread(kafka_recvc)
+                    kafka_recvt.start()
+                    kafka_recvt.join()
+                elif not errors:
+                    break
+
+            errors = kafka_recvc.get_errors()
+            if not errors:
+                break
+
+        return kafka_recvc.recv, kafka_recvc.get_errors(), 0 if not kafka_recvc.get_errors() else 1
+
+    def _umb_send_and_receive(
         self, messages: List[Any], operation: SignOperation
     ) -> Tuple[Dict[int, Any], List[MsgError], int]:
         received: Dict[int, Any] = {}
@@ -352,6 +646,8 @@ class MsgSigner(Signer):
                 # signer_results.status = "error"
                 # for error in errors:
                 #     signer_results.error_message += f"{error.name} : {error.description}\n"
+                recvt.stop()
+                recvt.join(timeout=5)
                 return received, errors, 1
 
             # wait for receiver to finish
@@ -396,7 +692,25 @@ class MsgSigner(Signer):
             errors = recvc.get_errors()
             if not errors:
                 break
+
         return recvc.recv, recvc.get_errors(), 0 if not recvc.get_errors() else 1
+
+    def _send_and_receive(
+        self, messages: List[Any], operation: SignOperation
+    ) -> Tuple[Dict[int, Any], List[MsgError], int]:
+        """Send and receive messages via the configured transport."""
+        umb_configured = bool(self.messaging_brokers)
+        kafka_configured = self.kafka_enabled
+
+        if not umb_configured and not kafka_configured:
+            raise ValueError("No messaging transport configured")
+
+        if kafka_configured:
+            LOG.info("Using Kafka transport")
+            return self._kafka_send_and_receive(messages, operation)
+        else:
+            LOG.info("Using UMB transport")
+            return self._umb_send_and_receive(messages, operation)
 
     def clear_sign(self: MsgSigner, operation: ClearSignOperation) -> SigningResults:
         """Run the clearsign operation.
@@ -774,29 +1088,107 @@ class MsgBatchSigner(MsgSigner):
 
         Arguments:
             config_data (dict): configuration data to load
+
+        The config file determines which transport to use based on which section is present.
+        Only one transport can be configured per config file.
         """
-        self.messaging_brokers = config_data["msg_batch_signer"]["messaging_brokers"]
-        self.messaging_cert_key = os.path.expanduser(
-            config_data["msg_batch_signer"]["messaging_cert_key"]
-        )
-        self.messaging_ca_cert = os.path.expanduser(
-            config_data["msg_batch_signer"]["messaging_ca_cert"]
-        )
-        self.topic_send_to = config_data["msg_batch_signer"]["topic_send_to"]
-        self.topic_listen_to = config_data["msg_batch_signer"]["topic_listen_to"]
-        self.environment = config_data["msg_batch_signer"]["environment"]
-        self.service = config_data["msg_batch_signer"]["service"]
-        self.message_id_key = config_data["msg_batch_signer"]["message_id_key"]
-        self.retries = config_data["msg_batch_signer"]["retries"]
-        self.send_retries = config_data["msg_batch_signer"]["send_retries"]
-        self.log_level = config_data["msg_batch_signer"]["log_level"]
-        self.timeout = config_data["msg_batch_signer"]["timeout"]
-        self.creator = self._get_cert_subject_cn()
-        self.key_aliases = config_data["msg_batch_signer"].get("key_aliases", {})
-        self.chunk_size = config_data["msg_batch_signer"]["chunk_size"]
-        self.task_id_attribute = config_data["msg_batch_signer"].get(
-            "task_id_attribute", "pub_task_id"
-        )
+        umb_config = config_data.get("msg_batch_signer")
+        kafka_config = config_data.get("kafka_batch_signer") or config_data.get("kafka_signer")
+
+        if umb_config and kafka_config:
+            raise ValueError("Config file cannot have both msg_batch_signer and kafka_batch_signer. Choose one.")
+
+        if not umb_config and not kafka_config:
+            raise ValueError("Config file must have either msg_batch_signer or kafka_batch_signer")
+
+        if umb_config:
+            LOG.info("Loading msg_batch_signer configuration")
+            self.messaging_brokers = umb_config["messaging_brokers"]
+            self.messaging_cert_key = os.path.expanduser(umb_config["messaging_cert_key"])
+            self.messaging_ca_cert = os.path.expanduser(umb_config["messaging_ca_cert"])
+            self.topic_send_to = umb_config["topic_send_to"]
+            self.topic_listen_to = umb_config["topic_listen_to"]
+            self.environment = umb_config["environment"]
+            self.service = umb_config["service"]
+            self.message_id_key = umb_config["message_id_key"]
+            self.retries = umb_config["retries"]
+            self.send_retries = umb_config["send_retries"]
+            self.log_level = umb_config["log_level"]
+            self.timeout = umb_config["timeout"]
+            self.creator = self._get_cert_subject_cn()
+            self.key_aliases = umb_config.get("key_aliases", {})
+            self.chunk_size = umb_config["chunk_size"]
+            self.task_id_attribute = umb_config.get("task_id_attribute", "pub_task_id")
+            self.kafka_enabled = False
+        else:
+            self.messaging_brokers = []
+            self.messaging_cert_key = ""
+            self.messaging_ca_cert = ""
+            self.topic_send_to = ""
+            self.topic_listen_to = ""
+            self.environment = kafka_config.get("environment", "prod")
+            self.service = kafka_config.get("service", "pubtools-sign")
+            self.message_id_key = "request_id"
+            self.retries = kafka_config.get("retries", 3)
+            self.send_retries = kafka_config.get("send_retries", 2)
+            self.log_level = "INFO"
+            self.timeout = kafka_config.get("timeout", 600)
+            self.creator = kafka_config.get("creator", "pubtools-sign")
+            self.key_aliases = {}
+            self.chunk_size = kafka_config.get("chunk_size", 100)
+            self.task_id_attribute = "pub_task_id"
+            self._load_kafka_config_batch(config_data)
+
+    def _load_kafka_config_batch(self: Self, config_data: Dict[str, Any]) -> None:
+        """Load Kafka configuration from config data for batch signer.
+
+        Uses kafka_batch_signer if present, otherwise falls back to kafka_signer.
+        Kafka is automatically enabled when required fields are present:
+        bootstrap_servers, topic_send_to, topic_listen_to.
+
+        Arguments:
+            config_data (dict): configuration data to load
+        """
+        kafka_config = config_data.get("kafka_batch_signer") or config_data.get("kafka_signer")
+
+        if not kafka_config:
+            self.kafka_enabled = False
+            return
+
+        self.kafka_bootstrap_servers = kafka_config.get("bootstrap_servers", [])
+        self.kafka_username = kafka_config.get("username", "")
+        self.kafka_password = kafka_config.get("password", "")
+        self.kafka_topic_send_to = kafka_config.get("topic_send_to", "")
+        self.kafka_topic_listen_to = kafka_config.get("topic_listen_to", "")
+        self.kafka_group_id = kafka_config.get("group_id", "pubtools-sign-batch")
+        self.kafka_retries = kafka_config.get("retries", 3)
+        self.kafka_fallback_base = kafka_config.get("fallback_base", 1.0)
+        self.kafka_fallback_factor = kafka_config.get("fallback_factor", 2.0)
+
+        missing = []
+        if not self.kafka_bootstrap_servers:
+            missing.append("bootstrap_servers")
+        if not self.kafka_topic_send_to:
+            missing.append("topic_send_to")
+        if not self.kafka_topic_listen_to:
+            missing.append("topic_listen_to")
+
+        if missing:
+            LOG.debug(
+                "Kafka config section present but missing required fields: %s. "
+                "Kafka messaging will not be enabled.",
+                ", ".join(missing),
+            )
+            self.kafka_enabled = False
+        else:
+            self.kafka_enabled = True
+            LOG.info(
+                "Kafka messaging enabled for batch signer. "
+                "Brokers: %s, Send topic: %s, Recv topic: %s",
+                self.kafka_bootstrap_servers,
+                self.kafka_topic_send_to,
+                self.kafka_topic_listen_to,
+            )
 
 
 def msg_clear_sign(

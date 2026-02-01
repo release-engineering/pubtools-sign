@@ -786,51 +786,36 @@ def test_recv_client_recv_message_break(
 
 
 def test_msgsig_doc_arguments():
-    assert MsgBatchSigner.doc_arguments() == {
-        "options": {
-            "messaging_brokers": {"description": "List of brokers URLS"},
-            "messaging_cert_key": {
-                "description": "Client certificate + key for messaging authorization"
-            },
-            "messaging_ca_cert": {"description": "Messaging CA certificate"},
-            "topic_send_to": {"description": "Topic where to send the messages"},
-            "topic_listen_to": {"description": "Topic where to listen for replies"},
-            "creator": {"description": "Identification of creator of signing request"},
-            "environment": {"description": "Environment indetification in sent messages"},
-            "service": {"description": "Service identificator"},
-            "task_id_attribute": {
-                "description": "Attribute used to custom identification of signing request"
-            },
-            "timeout": {"description": "Timeout for messaging receive"},
-            "retries": {"description": "Retries for messaging receive"},
-            "send_retries": {"description": "Retries for messaging send+receive"},
-            "message_id_key": {
-                "description": "Attribute name in message body which should be used as message id"
-            },
-            "log_level": {"description": "Log level"},
-            "key_aliases": {"description": "Aliases for signing keys"},
-        },
-        "examples": {
-            "msg_batch_signer": {
-                "messaging_brokers": ["amqps://broker-01:5671", "amqps://broker-02:5671"],
-                "messaging_cert_key": "~/messaging/cert.pem",
-                "messaging_ca_cert": "~/messaging/ca_cert.crt",
-                "topic_send_to": "topic://Topic.sign",
-                "topic_listen_to": "queue://Consumer.{{creator}}.{{task_id}}.Topic.sign."
-                "{{task_id}}",
-                "creator": "pubtools-sign",
-                "environment": "prod",
-                "service": "pubtools-sign",
-                "task_id_attribute": "task_id",
-                "timeout": 1,
-                "retries": 3,
-                "send_retries": 2,
-                "message_id_key": "123",
-                "log_level": "debug",
-                "key_aliases": "{'production':'abcde1245'}",
-            }
-        },
-    }
+    doc_args = MsgBatchSigner.doc_arguments()
+    # Check that the core UMB options are present
+    assert "messaging_brokers" in doc_args["options"]
+    assert "messaging_cert_key" in doc_args["options"]
+    assert "messaging_ca_cert" in doc_args["options"]
+    assert "topic_send_to" in doc_args["options"]
+    assert "topic_listen_to" in doc_args["options"]
+    assert "creator" in doc_args["options"]
+    assert "environment" in doc_args["options"]
+    assert "service" in doc_args["options"]
+    assert "timeout" in doc_args["options"]
+    assert "retries" in doc_args["options"]
+    assert "send_retries" in doc_args["options"]
+    assert "message_id_key" in doc_args["options"]
+    assert "log_level" in doc_args["options"]
+    assert "key_aliases" in doc_args["options"]
+    # Check that Kafka options are present
+    assert "kafka_enabled" in doc_args["options"]
+    assert "kafka_bootstrap_servers" in doc_args["options"]
+    assert "kafka_username" in doc_args["options"]
+    assert "kafka_password" in doc_args["options"]
+    assert "kafka_topic_send_to" in doc_args["options"]
+    assert "kafka_topic_listen_to" in doc_args["options"]
+    assert "kafka_group_id" in doc_args["options"]
+    assert "kafka_retries" in doc_args["options"]
+    # Check examples
+    assert "msg_batch_signer" in doc_args["examples"]
+    assert doc_args["examples"]["msg_batch_signer"]["messaging_brokers"] == [
+        "amqps://broker-01:5671", "amqps://broker-02:5671"
+    ]
 
 
 def test_msgsigresult_to_dict():

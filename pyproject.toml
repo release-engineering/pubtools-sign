@@ -47,7 +47,8 @@ dependencies = [
     "pubtools>=1.4.0",
     "opentelemetry-api",
     "opentelemetry-sdk",
-    "opentelemetry-exporter-otlp"
+    "opentelemetry-exporter-otlp",
+    "confluent-kafka>=2.0.0"
 ]
 
 [tool.setuptools.packages.find]

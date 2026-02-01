@@ -1,6 +1,6 @@
 pytest
 pytest-cov
-proton
+python-qpid-proton
 bandit
 sphinx
 ansible

@@ -51,6 +51,7 @@ class _SendClient(_MsgClient):
 
     def on_connection_opened(self, event: proton.Event) -> None:
         if event.connection:
+            LOG.info(self._format_log_msg("SENDER: Connection opened, creating sender"))
             self.sender = event.container.create_sender(event.connection)
 
     @tw.instrument_func()
@@ -59,11 +60,11 @@ class _SendClient(_MsgClient):
             message = self.messages[self.sent]
             # Inject trace context to message properties
             propagator.inject(carrier=message.headers)
-            LOG.debug(
+            LOG.info(
                 self._format_log_msg(
-                    f"SENDER: Sending message: {json.dumps(message.body)}"
-                    f"{message.address}"
-                    f"{json.dumps(message.headers)}",
+                    f"SENDER: Sending message to {message.address}"
+                    f" body: {json.dumps(message.body)}"
+                    f" headers: {json.dumps(message.headers)}",
                 )
             )
             if event.sender:
@@ -78,13 +79,46 @@ class _SendClient(_MsgClient):
             self.sent += 1
 
     def on_accepted(self, event: proton.Event) -> None:
-        # LOG.info("Sender accepted")
+        LOG.info(self._format_log_msg("SENDER: Message accepted"))
         self.confirmed += 1
         if self.confirmed == self.total:
             LOG.info("SENDER: closing")
             if event.connection:
                 event.connection.close()
             self.sender.close()
+
+    def on_rejected(self, event: proton.Event) -> None:
+        delivery = event.delivery
+        remote_state = delivery.remote if delivery else None
+        condition = None
+        if remote_state and hasattr(remote_state, 'condition'):
+            condition = remote_state.condition
+        LOG.error(
+            self._format_log_msg(
+                f"SENDER: Message rejected by broker: {condition or 'no condition provided'}"
+            )
+        )
+        self.errors.append(
+            MsgError(
+                name="message_rejected",
+                description=f"Message rejected by broker: {condition or 'unknown reason'}",
+                source=delivery,
+            )
+        )
+        if event.connection:
+            event.connection.close()
+
+    def on_released(self, event: proton.Event) -> None:
+        LOG.warning(self._format_log_msg("SENDER: Message released by broker"))
+        self.errors.append(
+            MsgError(
+                name="message_released",
+                description="Message released by broker (not delivered)",
+                source=event.delivery,
+            )
+        )
+        if event.connection:
+            event.connection.close()
 
     def on_disconnected(self, event: proton.Event) -> None:  # pragma: no cover
         self.sent = self.confirmed  # pragma: no cover
