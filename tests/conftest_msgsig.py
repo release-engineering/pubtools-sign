@@ -13,8 +13,7 @@ def f_msg_signer(f_config_msg_signer_ok):
 @fixture
 def f_config_msg_signer_ok(f_client_certificate, f_ca_certificate):
     with tempfile.NamedTemporaryFile() as tmpf:
-        tmpf.write(
-            f"""
+        tmpf.write(f"""
 msg_signer:
   messaging_brokers:
     - amqps://broker-01:5671
@@ -30,10 +29,7 @@ msg_signer:
   send_retries: 2
   message_id_key: request_id
   log_level: debug
-        """.encode(
-                "utf-8"
-            )
-        )
+        """.encode("utf-8"))
         tmpf.flush()
         yield tmpf.name
 
@@ -42,8 +38,7 @@ msg_signer:
 def f_config_msg_signer_ok2(f_client_certificate, f_ca_certificate, f_qpid_broker):
     qpid_broker, port = f_qpid_broker
     with tempfile.NamedTemporaryFile() as tmpf:
-        tmpf.write(
-            f"""
+        tmpf.write(f"""
 msg_signer:
   messaging_brokers:
     - localhost:{port}
@@ -58,10 +53,7 @@ msg_signer:
   send_retries: 2
   message_id_key: request_id
   log_level: debug
-        """.encode(
-                "utf-8"
-            )
-        )
+        """.encode("utf-8"))
         tmpf.flush()
         yield tmpf.name
 
@@ -69,8 +61,7 @@ msg_signer:
 @fixture
 def f_config_msg_signer_aliases(f_client_certificate):
     with tempfile.NamedTemporaryFile() as tmpf:
-        tmpf.write(
-            f"""
+        tmpf.write(f"""
 msg_signer:
   messaging_brokers:
     - amqps://broker-01:5671
@@ -88,10 +79,7 @@ msg_signer:
   log_level: debug
   key_aliases:
     beta: abcde1245
-        """.encode(
-                "utf-8"
-            )
-        )
+        """.encode("utf-8"))
         tmpf.flush()
         yield tmpf.name
 
@@ -108,8 +96,7 @@ def f_msg_batch_signer(f_config_msg_signer_ok):
 @fixture
 def f_config_msg_batch_signer_ok(f_client_certificate, f_ca_certificate):
     with tempfile.NamedTemporaryFile() as tmpf:
-        tmpf.write(
-            f"""
+        tmpf.write(f"""
 msg_batch_signer:
   messaging_brokers:
     - amqps://broker-01:5671
@@ -126,10 +113,7 @@ msg_batch_signer:
   message_id_key: request_id
   log_level: debug
   chunk_size: 2
-        """.encode(
-                "utf-8"
-            )
-        )
+        """.encode("utf-8"))
         tmpf.flush()
         yield tmpf.name
 
@@ -138,8 +122,7 @@ msg_batch_signer:
 def f_config_msg_batch_signer_ok2(f_client_certificate, f_ca_certificate, f_qpid_broker):
     qpid_broker, port = f_qpid_broker
     with tempfile.NamedTemporaryFile() as tmpf:
-        tmpf.write(
-            f"""
+        tmpf.write(f"""
 msg_batch_signer:
   messaging_brokers:
     - localhost:{port}
@@ -155,10 +138,7 @@ msg_batch_signer:
   message_id_key: request_id
   log_level: debug
   chunk_size: 2
-        """.encode(
-                "utf-8"
-            )
-        )
+        """.encode("utf-8"))
         tmpf.flush()
         yield tmpf.name
 
@@ -166,8 +146,7 @@ msg_batch_signer:
 @fixture
 def f_config_msg_batch_signer_aliases(f_client_certificate):
     with tempfile.NamedTemporaryFile() as tmpf:
-        tmpf.write(
-            f"""
+        tmpf.write(f"""
 msg_batch_signer:
   messaging_brokers:
     - amqps://broker-01:5671
@@ -186,9 +165,6 @@ msg_batch_signer:
   chunk_size: 2
   key_aliases:
     beta: abcde1245
-        """.encode(
-                "utf-8"
-            )
-        )
+        """.encode("utf-8"))
         tmpf.flush()
         yield tmpf.name

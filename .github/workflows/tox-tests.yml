@@ -3,7 +3,7 @@ name: Tox tests
 on: [push, pull_request]
 
 jobs:
-  py39:
+  py3:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -16,7 +16,7 @@ jobs:
       - name: Install Tox
         run: pip install tox
       - name: Run Tox
-        run: tox -e py39 -vv
+        run: tox -e py314 -vv
   black:
     runs-on: ubuntu-latest
     steps:
@@ -88,7 +88,7 @@ jobs:
       - name: Install Tox
         run: pip install tox
       - name: Run Tox
-        run: tox -e py39
+        run: tox -e py3
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         env:

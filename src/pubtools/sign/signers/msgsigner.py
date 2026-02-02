@@ -34,7 +34,6 @@ from ..utils import (
     FData,
 )
 
-
 LOG = logging.getLogger("pubtools.sign.signers.msgsigner")
 LOG.setLevel(logging.INFO)
 

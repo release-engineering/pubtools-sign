@@ -59,9 +59,7 @@ RETURN = r"""
 # values.
 {0}
 {1}
-""".format(
-    yaml.dump(MsgSignerResults.doc_arguments()), yaml.dump(ClearSignResult.doc_arguments())
-)
+""".format(yaml.dump(MsgSignerResults.doc_arguments()), yaml.dump(ClearSignResult.doc_arguments()))
 
 
 def run_module() -> None:
