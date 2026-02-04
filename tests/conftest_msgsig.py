@@ -36,7 +36,7 @@ msg_signer:
 
 @fixture
 def f_config_msg_signer_ok2(f_client_certificate, f_ca_certificate, f_qpid_broker):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     with tempfile.NamedTemporaryFile() as tmpf:
         tmpf.write(f"""
 msg_signer:
@@ -120,7 +120,7 @@ msg_batch_signer:
 
 @fixture
 def f_config_msg_batch_signer_ok2(f_client_certificate, f_ca_certificate, f_qpid_broker):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     with tempfile.NamedTemporaryFile() as tmpf:
         tmpf.write(f"""
 msg_batch_signer:

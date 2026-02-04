@@ -257,8 +257,16 @@ class _StrayFakeMsgSigner(_FakeMsgSigner):
         sender.send(reply)
 
 
-def run_broker(broker, stdout):
-    sys.stdout = stdout
+def run_broker(port):  # broker, stdout):
+    broker = Container(_Broker(f"localhost:{port}"))
+    # sys.stdout = stdout
+    broker.run()
+    return broker
+
+
+def run_broken_broker(port):  # broker, stdout):
+    broker = Container(_Broker(f"localhost:{port}"))
+    # sys.stdout = stdout
     broker.run()
 
 
@@ -313,10 +321,9 @@ def f_find_available_port_for_broken():
 @fixture(scope="session")
 def f_qpid_broker(f_find_available_port):
     LOG.info("starting broker", f"localhost:{f_find_available_port}")
-    broker = Container(_Broker(f"localhost:{f_find_available_port}"))
-    p = Process(target=run_broker, args=(broker, sys.stdout))
+    p = Process(target=run_broker, args=(f_find_available_port,))
     p.start()
-    yield (broker, f_find_available_port)
+    yield (f_find_available_port,)
     LOG.info("destroying qpid broker")
     p.terminate()
 
@@ -324,10 +331,9 @@ def f_qpid_broker(f_find_available_port):
 @fixture(scope="session")
 def f_broken_qpid_broker(f_find_available_port_for_broken):
     LOG.debug("starting broker", f"localhost:{f_find_available_port_for_broken}")
-    broker = Container(_BrokenBroker(f"localhost:{f_find_available_port_for_broken}"))
-    p = Process(target=broker.run, args=())
+    p = Process(target=run_broken_broker, args=())
     p.start()
-    yield (broker, f_find_available_port_for_broken)
+    yield (f_find_available_port_for_broken,)
     LOG.debug("destroying qpid broker")
     p.terminate()
 
