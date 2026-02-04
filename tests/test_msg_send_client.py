@@ -14,7 +14,7 @@ def test_send_client_zero_messages(
     f_client_certificate,
     f_ca_certificate,
 ):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     sc = SendClient([], [f"localhost:{port}"], f_client_certificate, f_ca_certificate, 10, [])
     sc.run()
     msgsigner, _, received_messages = f_fake_msgsigner
@@ -29,7 +29,7 @@ def test_send_client_send_message(
     f_client_certificate,
     f_ca_certificate,
 ):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     message = MsgMessage(
         headers={}, address=f_msgsigner_listen_to_topic, body={"message": "test_message"}
     )
@@ -50,7 +50,7 @@ def test_send_client_errors(
     f_client_certificate,
     f_ca_certificate,
 ):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     message1 = MsgMessage(
         headers={}, address=f_msgsigner_listen_to_topic, body={"message": "test_message1"}
     )
@@ -84,7 +84,7 @@ def test_ingore_error(
     f_client_certificate,
     f_ca_certificate,
 ):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     message1 = MsgMessage(
         headers={}, address=f_msgsigner_listen_to_topic, body={"message": "test_message1"}
     )
@@ -109,7 +109,7 @@ def test_non_ingored_error(
     f_client_certificate,
     f_ca_certificate,
 ):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     message1 = MsgMessage(
         headers={}, address=f_msgsigner_listen_to_topic, body={"message": "test_message1"}
     )

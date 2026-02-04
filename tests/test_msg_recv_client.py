@@ -15,7 +15,7 @@ def test_recv_client_zero_messages(
     f_client_certificate,
     f_ca_certificate,
 ):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     errors = []
     received = {}
     rc = RecvClient(
@@ -43,7 +43,7 @@ def test_recv_client_recv_message(
     f_fake_msgsigner,
     f_msgsigner_send_to_queue,
 ):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     message = MsgMessage(
         headers={"mtype": "test"},
         address=f_msgsigner_listen_to_topic,
@@ -92,7 +92,7 @@ def test_recv_client_timeout(
     f_fake_msgsigner,
     f_msgsigner_send_to_queue,
 ):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     message = MsgMessage(
         headers={"mtype": "test"},
         address=f_msgsigner_listen_to_topic,
@@ -133,7 +133,7 @@ def test_recv_client_transport_error(
     f_fake_msgsigner,
     f_msgsigner_send_to_queue,
 ):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     errors = []
     received = {}
     receiver = RecvClient(
@@ -165,7 +165,7 @@ def test_recv_client_link_error(
     f_fake_msgsigner,
     f_msgsigner_send_to_queue,
 ):
-    qpid_broker, port = f_broken_qpid_broker
+    (port,) = f_broken_qpid_broker
     message = MsgMessage(
         headers={"mtype": "test"},
         address=f_msgsigner_listen_to_topic,
@@ -204,7 +204,7 @@ def test_recv_client_errors(
     f_fake_msgsigner,
     f_msgsigner_send_to_queue,
 ):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     message = MsgMessage(
         headers={"mtype": "test"},
         address=f_msgsigner_listen_to_topic,
@@ -255,7 +255,7 @@ def test_recv_client_timeout_recv_in_time(
     f_fake_msgsigner,
     f_msgsigner_send_to_queue,
 ):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     message = MsgMessage(
         headers={"mtype": "test"},
         address=f_msgsigner_listen_to_topic,
@@ -305,7 +305,7 @@ def test_recv_client_recv_message_stray(
     f_msgsigner_send_to_queue_stray,
     f_fake_msgsigner_stray,
 ):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     message = MsgMessage(
         headers={"mtype": "test"},
         address=f_msgsigner_listen_to_topic_stray,
@@ -352,7 +352,7 @@ def test_recv_client_recv_message_timeout(
     f_fake_msgsigner,
     f_msgsigner_send_to_queue,
 ):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     message = MsgMessage(
         headers={"mtype": "test"},
         address=f_msgsigner_listen_to_topic,
@@ -438,7 +438,7 @@ def test_recv_client_close(
     f_msgsigner_listen_to_topic,
     f_msgsigner_send_to_queue,
 ):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     message = MsgMessage(
         headers={"mtype": "test"},
         address=f_msgsigner_listen_to_topic,
@@ -486,7 +486,7 @@ def test_recv_client_close(
 
 
 def test_recv_client_close_method(f_msgsigner_send_to_queue, f_qpid_broker):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     errors = []
     received = {}
     with patch(

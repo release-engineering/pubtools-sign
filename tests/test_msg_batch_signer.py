@@ -720,7 +720,7 @@ def test_recv_client_recv_message_break(
     f_ca_certificate,
     f_config_msg_batch_signer_ok2,
 ):
-    qpid_broker, port = f_qpid_broker
+    (port,) = f_qpid_broker
     container_sign_operation = ContainerSignOperation(
         digests=("some-digest",),
         references=("some/reference:some-tag",),

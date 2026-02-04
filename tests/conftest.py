@@ -38,7 +38,6 @@ from pytest import fixture
 
 from pubtools.sign.clients.msg import _MsgClient
 
-
 LOG = logging.getLogger("pubtools.sign.signers.radas")
 LOG.addHandler(logging.StreamHandler(sys.stdout))
 
@@ -258,8 +257,16 @@ class _StrayFakeMsgSigner(_FakeMsgSigner):
         sender.send(reply)
 
 
-def run_broker(broker, stdout):
-    sys.stdout = stdout
+def run_broker(port):  # broker, stdout):
+    broker = Container(_Broker(f"localhost:{port}"))
+    # sys.stdout = stdout
+    broker.run()
+    return broker
+
+
+def run_broken_broker(port):  # broker, stdout):
+    broker = Container(_Broker(f"localhost:{port}"))
+    # sys.stdout = stdout
     broker.run()
 
 
@@ -314,10 +321,9 @@ def f_find_available_port_for_broken():
 @fixture(scope="session")
 def f_qpid_broker(f_find_available_port):
     LOG.info("starting broker", f"localhost:{f_find_available_port}")
-    broker = Container(_Broker(f"localhost:{f_find_available_port}"))
-    p = Process(target=run_broker, args=(broker, sys.stdout))
+    p = Process(target=run_broker, args=(f_find_available_port,))
     p.start()
-    yield (broker, f_find_available_port)
+    yield (f_find_available_port,)
     LOG.info("destroying qpid broker")
     p.terminate()
 
@@ -325,10 +331,9 @@ def f_qpid_broker(f_find_available_port):
 @fixture(scope="session")
 def f_broken_qpid_broker(f_find_available_port_for_broken):
     LOG.debug("starting broker", f"localhost:{f_find_available_port_for_broken}")
-    broker = Container(_BrokenBroker(f"localhost:{f_find_available_port_for_broken}"))
-    p = Process(target=broker.run, args=())
+    p = Process(target=run_broken_broker, args=())
     p.start()
-    yield (broker, f_find_available_port_for_broken)
+    yield (f_find_available_port_for_broken,)
     LOG.debug("destroying qpid broker")
     p.terminate()
 
@@ -380,8 +385,7 @@ def f_fake_msgsigner_stray(
 @fixture
 def f_client_certificate():
     with tempfile.NamedTemporaryFile() as tmpf:
-        tmpf.write(
-            """
+        tmpf.write("""
 -----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC1y5rshMkYqfP2
 k7z2IJXto3AvLCAYDN9WX5mUUFgPFAFur38bDopqj5dSkXlR5f3MwZeRCNsxRXKD
@@ -432,10 +436,7 @@ IQ1XIX6F1jjody+3I+8b2tBpaPuNXDAtfoEoUWZW0ToTfAi+6Li7IMjXRZ6wPVxU
 aoKJ9jBURYeYzd/Zi2RPLpjt8TYPir8vKQ==
 -----END CERTIFICATE-----
 
-""".encode(
-                "utf-8"
-            )
-        )
+""".encode("utf-8"))
         tmpf.flush()
         yield tmpf.name
 
@@ -443,8 +444,7 @@ aoKJ9jBURYeYzd/Zi2RPLpjt8TYPir8vKQ==
 @fixture
 def f_ca_certificate():
     with tempfile.NamedTemporaryFile() as tmpf:
-        tmpf.write(
-            """
+        tmpf.write("""
 -----BEGIN CERTIFICATE-----
 MIIDtzCCAp+gAwIBAgIUATUd1WliG6ETZqKP8EZyijG9xUIwDQYJKoZIhvcNAQEL
 BQAwazELMAkGA1UEBhMCdVMxFTATBgNVBAcMDERlZmF1bHQgQ2l0eTEQMA4GA1UE
@@ -466,10 +466,7 @@ YFlQF7l9vSnVVt4/JRPB+ydBgSXoxK6b5zbEK8+3iqBuRGvp8u0rrn4ohEkserd+
 tcKssr4IEdgeVNco+UStQrrIrf+KoPN147fKzwkaUZKj3ybVExHnilr4D+HB94jL
 pH404Fud+v2NWjl7RSQnsMw+gCz6Sm3eU/aWC5L5ZOecawj01Qr60nv97eqc8tdG
 TrXd8yRh0cI5wL5KnO4hL/kYwOOaKsMwEkNlmL2Io7DrhVgJUAWycqfHfA==
------END CERTIFICATE-----""".encode(
-                "utf-8"
-            )
-        )
+-----END CERTIFICATE-----""".encode("utf-8"))
         tmpf.flush()
         yield tmpf.name
 
@@ -477,8 +474,7 @@ TrXd8yRh0cI5wL5KnO4hL/kYwOOaKsMwEkNlmL2Io7DrhVgJUAWycqfHfA==
 @fixture
 def f_config_msg_signer_missing():
     with tempfile.NamedTemporaryFile() as tmpf:
-        tmpf.write(
-            f"""
+        tmpf.write(f"""
 msg_signer:
   messaging_brokers:
     - amqps://broker-01:5671
@@ -491,10 +487,7 @@ msg_signer:
   timeout: 1
   retries: 3
   message_id_key: request_id
-  log_level: debug""".encode(
-                "utf-8"
-            )
-        )
+  log_level: debug""".encode("utf-8"))
         tmpf.flush()
         yield tmpf.name
 

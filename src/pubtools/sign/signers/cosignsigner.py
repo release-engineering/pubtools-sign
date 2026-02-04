@@ -22,7 +22,6 @@ from ..conf.conf import load_config, CONFIG_PATHS
 from ..utils import set_log_level, run_command, _get_config_file, run_in_parallel, FData
 from ..clients.registry import ContainerRegistryClient, AuthTokenWrapper
 
-
 LOG = logging.getLogger("pubtools.sign.signers.cosignsigner")
 
 
